@@ -1,0 +1,10 @@
+{
+	"files.trimTrailingWhitespace": true,
+	"editor.formatOnSave": true,
+	"python.linting.enabled": true,
+	"python.linting.lintOnSave": true,
+	"python.formatting.provider": "black",
+	"[python]": {
+		"editor.defaultFormatter": "ms-python.python",
+	},
+}

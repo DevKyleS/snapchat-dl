@@ -7,7 +7,6 @@ from datetime import datetime
 
 from loguru import logger
 
-
 MEDIA_TYPE = ["jpg", "mp4"]
 
 

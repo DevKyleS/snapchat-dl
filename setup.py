@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 """The setup script."""
-from setuptools import find_packages
-from setuptools import setup
-
+from setuptools import find_packages, setup
 
 version = {}
 with open("snapchat_dl/version.py") as fp:
@@ -27,7 +25,7 @@ setup(
     url="https://github.com/skyme5/snapchat-dl",
     author="Aakash Gajjar",
     author_email="skyqutip@gmail.com",
-    entry_points={"console_scripts": ["snapchat-dl=snapchat_dl.app:main",],},
+    entry_points={"console_scripts": ["snapchat-dl=snapchat_dl.app:main",], },
     include_package_data=True,
     install_requires=requirements,
     test_suite="tests",

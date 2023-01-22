@@ -7,11 +7,13 @@ from loguru import logger
 
 from snapchat_dl.cli import parse_arguments
 from snapchat_dl.snapchat_dl import SnapchatDL
-from snapchat_dl.utils import NoStoriesFound
-from snapchat_dl.utils import search_usernames
-from snapchat_dl.utils import use_batch_file
-from snapchat_dl.utils import use_prefix_dir
-from snapchat_dl.utils import UserNotFoundError
+from snapchat_dl.utils import (
+    NoStoriesFound,
+    UserNotFoundError,
+    search_usernames,
+    use_batch_file,
+    use_prefix_dir,
+)
 
 
 def main():

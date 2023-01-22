@@ -5,7 +5,7 @@ bump2version==0.5.11
 coverage==4.5.4
 pre-commit==2.5.1
 pytest==5.4.3
-reorder_python_imports==2.3.0
+reorder_python_imports==3.9.0
 Sphinx==1.8.5
 watchdog==0.9.0
 wheel==0.33.6

@@ -16,17 +16,17 @@
     </a>
     <a href="https://pypi.python.org/pypi/snapchat-dl">
       <img
-        src="https://img.shields.io/github/workflow/status/skyme5/snapchat-dl/build?cacheSeconds=360"
+        src="https://img.shields.io/github/workflow/status/DevKyleS/snapchat-dl/build?cacheSeconds=360"
         alt="CI"
       />
     </a>
-    <a href="https://codecov.io/gh/skyme5/snapchat-dl">
+    <a href="https://codecov.io/gh/DevKyleS/snapchat-dl">
       <img
-        src="https://img.shields.io/codecov/c/github/skyme5/snapchat-dl?cacheSeconds=360"
+        src="https://img.shields.io/codecov/c/github/DevKyleS/snapchat-dl?cacheSeconds=360"
         alt="Code Coverage"
       />
     </a>
-    <a href="https://codecov.io/gh/skyme5/snapchat-dl">
+    <a href="https://codecov.io/gh/DevKyleS/snapchat-dl">
       <img
         src="https://img.shields.io/pypi/pyversions/snapchat-dl"
         alt="Python Versions"
@@ -66,7 +66,7 @@ pip install snapchat-dl
 Install from GitHub,
 
 ```bash
-pip install git+git://github.com/skyme5/snapchat-dl
+pip install git+git://github.com/DevKyleS/snapchat-dl
 ```
 
 Unix users might want to add `--user` flag to install without requiring `sudo`.

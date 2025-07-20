@@ -107,11 +107,10 @@ class SnapchatDL:
             def util_web_extract(content: dict):
                 if "curatedHighlights" in content["props"]["pageProps"]:
                     return content["props"]["pageProps"]["curatedHighlights"]
-                return list()
-
-            def util_web_extract(content: dict):
-                if "curatedHighlights" in content["props"]["pageProps"]:
-                    return content["props"]["pageProps"]["curatedHighlights"]
+                if "preselectedStory" in content["props"]["pageProps"]:
+                    return content["props"]["pageProps"]["preselectedStory"][
+                        "premiumStory"
+                    ]["playerStory"]["snapList"]
                 return list()
 
             user_info = util_web_user_info(response_json)

@@ -98,9 +98,9 @@ def use_batch_file(args: Namespace) -> list:
     usernames = list()
     if args.batch_file is not None:
         if os.path.isfile(args.batch_file) is False:
-            raise Exception(
-                logger.error("Invalid Batch File at {}".format(args.batch_file))
-            )
+            error_msg = "Invalid Batch File at {}".format(args.batch_file)
+            logger.error(error_msg)
+            raise Exception(error_msg)
 
         with open(args.batch_file, "r") as f:
             for u in f.read().split("\n"):

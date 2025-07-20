@@ -19,7 +19,7 @@ def main():
     args = parse_arguments()
     usernames = args.username + use_batch_file(args) + use_prefix_dir(args)
 
-    downlaoder = SnapchatDL(
+    downloader = SnapchatDL(
         directory_prefix=args.save_prefix,
         max_workers=args.max_workers,
         limit_story=args.limit_story,
@@ -45,12 +45,12 @@ def main():
                 if username not in history:
                     history.append(username)
                     try:
-                        downlaoder.download(username)
+                        downloader.download(username)
                     except (NoStoriesFound, UserNotFoundError):
                         pass
             else:
                 try:
-                    downlaoder.download(username)
+                    downloader.download(username)
                 except (NoStoriesFound, UserNotFoundError):
                     pass
 

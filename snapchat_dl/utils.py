@@ -59,32 +59,39 @@ def valid_username(username):
 
 
 def search_usernames(string: str) -> list:
-    """Return list of usernames found in a string.
+    """Return list of usernames and publisher URLs found in a string.
 
     Args:
-        string (str): string to search for usernames
+        string (str): string to search for usernames and publisher URLs
 
     Returns:
-        list: usernames found in string
+        list: usernames and publisher URLs found in string
     """
-    return list(
-        sorted(
-            set(
-                [
-                    username
-                    for username in re.findall(
-                        r"https?://(?:story|www).snapchat.com/(?:[suad]+/|@)([\-\w\.\_]{3,15})",
-                        string,
-                    )
-                    if valid_username(username)
-                ]
-            )
+    results = []
+    
+    # Find regular usernames from story URLs
+    usernames = [
+        username
+        for username in re.findall(
+            r"https?://(?:story|www).snapchat.com/(?:[suad]+/|@)([\-\w\.\_]{3,15})",
+            string,
         )
+        if valid_username(username)
+    ]
+    results.extend(usernames)
+    
+    # Find publisher URLs
+    publisher_urls = re.findall(
+        r"https://story\.snapchat\.com/p/[a-f0-9\-]+/[0-9]+",
+        string,
     )
+    results.extend(publisher_urls)
+    
+    return list(sorted(set(results)))
 
 
 def use_batch_file(args: Namespace) -> list:
-    """Return list of usernames from file args.batch_file.
+    """Return list of usernames and publisher URLs from file args.batch_file.
 
     Args:
         args (Namespace): argparse Namespace
@@ -93,7 +100,7 @@ def use_batch_file(args: Namespace) -> list:
         os.error: raises if batch_file not found
 
     Returns:
-        list: usernames read from batch_file
+        list: usernames and publisher URLs read from batch_file
     """
     usernames = list()
     if args.batch_file is not None:
@@ -105,7 +112,8 @@ def use_batch_file(args: Namespace) -> list:
         with open(args.batch_file, "r") as f:
             for u in f.read().split("\n"):
                 username = u.strip()
-                if valid_username(username) and username not in usernames:
+                # Check if it's a valid username or a publisher URL
+                if (valid_username(username) or username.startswith("https://story.snapchat.com/p/")) and username not in usernames:
                     usernames.append(username)
 
     return usernames

@@ -12,7 +12,7 @@ def parse_arguments():
         "username",
         action="store",
         nargs="*",
-        help="At least one or more usernames to download stories for.",
+        help="At least one or more usernames to download stories for, or publisher URLs (https://story.snapchat.com/p/...).",
     )
 
     any_one_group = parser.add_mutually_exclusive_group()

@@ -8,15 +8,8 @@ import re
 import requests
 from loguru import logger
 
-from snapchat_dl.downloader import download_url
-from snapchat_dl.utils import (
-    MEDIA_TYPE,
-    APIResponseError,
-    NoStoriesFound,
-    UserNotFoundError,
-    dump_response,
-    strf_time,
-)
+import downloader
+import utils
 
 
 class SnapchatDL:
@@ -41,9 +34,12 @@ class SnapchatDL:
         self.regexp_web_json = (
             r'<script\s*id="__NEXT_DATA__"\s*type="application\/json">([^<]+)<\/script>'
         )
-        self.reaponse_ok = requests.codes.get("ok")
+        self.response_ok = requests.codes.get("ok")
 
     def _api_response(self, username):
+        # if publisher then switch to publisher path
+        if "-" in username:
+            self.endpoint_web = self.endpoint_web.replace("@", "p/")
         web_url = self.endpoint_web.format(username)
         return requests.get(
             web_url,
@@ -70,17 +66,47 @@ class SnapchatDL:
         try:
             response_json = json.loads(response_json_raw[0])
 
+            page = ""
+            publisherID = ""
+            storyID = ""
+
+            if "page" in response_json:
+                page = response_json["page"]
+            if "publisherID" in response_json["query"]:
+                publisherID = response_json["query"]["publisherID"]
+            if "storyID" in response_json["query"]:
+                storyID = response_json["query"]["storyID"]
+            print("page: " + page)
+            print("publisherID: " + publisherID)
+            print("storyID: " + storyID)
+
             def util_web_user_info(content: dict):
                 if "userProfile" in content["props"]["pageProps"]:
                     user_profile = content["props"]["pageProps"]["userProfile"]
                     field_id = user_profile["$case"]
                     return user_profile[field_id]
                 else:
-                    raise UserNotFoundError
+                    raise utils.UserNotFoundError
+
+            def util_publisher_user_info(content: dict):
+                if "query" in content["props"]:
+                    publisherID = content["props"]["query"]["publisherID"]
+                    return publisherID
+                else:
+                    raise utils.UserNotFoundError
 
             def util_web_story(content: dict):
                 if "story" in content["props"]["pageProps"]:
                     return content["props"]["pageProps"]["story"]["snapList"]
+                if "preselectedStory" in content["props"]["pageProps"]:
+                    return content["props"]["pageProps"]["preselectedStory"][
+                        "premiumStory"
+                    ]["playerStory"]["snapList"]
+                return list()
+
+            def util_web_extract(content: dict):
+                if "curatedHighlights" in content["props"]["pageProps"]:
+                    return content["props"]["pageProps"]["curatedHighlights"]
                 return list()
 
             def util_web_extract(content: dict):
@@ -94,7 +120,7 @@ class SnapchatDL:
             spotHighlights = util_web_extract(response_json)
             return stories, user_info, curatedHighlights, spotHighlights
         except (IndexError, KeyError, ValueError):
-            raise APIResponseError
+            raise utils.APIResponseError
 
     def download(self, username):
         """Download Snapchat Story for `username`.
@@ -111,7 +137,7 @@ class SnapchatDL:
             if self.quiet is False:
                 logger.info("\033[91m{}\033[0m has no stories".format(username))
 
-            raise NoStoriesFound
+            raise utils.NoStoriesFound
 
         if self.limit_story > -1:
             stories = stories[0 : self.limit_story]
@@ -125,23 +151,26 @@ class SnapchatDL:
                 media_url = media["snapUrls"]["mediaUrl"]
                 media_type = media["snapMediaType"]
                 timestamp = int(media["timestampInSec"]["value"])
-                date_str = strf_time(timestamp, "%Y-%m-%d")
+                date_str = utils.strf_time(timestamp, "%Y-%m-%d")
 
                 dir_name = os.path.join(self.directory_prefix, username, date_str)
 
-                filename = strf_time(timestamp, "%Y-%m-%d_%H-%M-%S {} {}.{}").format(
-                    snap_id, username, MEDIA_TYPE[media_type]
-                )
+                filename = utils.strf_time(
+                    timestamp, "%Y-%m-%d_%H-%M-%S {} {}.{}"
+                ).format(snap_id, username, utils.MEDIA_TYPE[media_type])
 
                 if self.dump_json:
                     filename_json = os.path.join(dir_name, filename + ".json")
                     media_json = dict(media)
                     media_json["snapUser"] = snap_user
-                    dump_response(media_json, filename_json)
+                    utils.dump_response(media_json, filename_json)
 
                 media_output = os.path.join(dir_name, filename)
                 executor.submit(
-                    download_url, media_url, media_output, self.sleep_interval
+                    downloader.download_url,
+                    media_url,
+                    media_output,
+                    self.sleep_interval,
                 )
 
         except KeyboardInterrupt:

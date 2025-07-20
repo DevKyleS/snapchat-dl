@@ -117,6 +117,8 @@ class SnapchatDL:
             stories = util_web_story(response_json)
             curatedHighlights = util_web_extract(response_json)
             spotHighlights = util_web_extract(response_json)
+            print(user_info)
+            print(stories)
             return stories, user_info, curatedHighlights, spotHighlights
         except (IndexError, KeyError, ValueError):
             raise utils.APIResponseError

@@ -1,3 +1,4 @@
 loguru
 pyperclip
 requests
+gql[all]

@@ -1,0 +1,17 @@
+{
+	"image": "mcr.microsoft.com/vscode/devcontainers/python:3",
+	"containerUser": "root",
+	"remoteUser": "root",
+	//"containerUser": "vscode",
+	//"remoteUser": "vscode",
+	"containerEnv": {},
+	// Commented out below until we have rust auto installed upon startup so that we can successfully install cryptography package
+	"postCreateCommand": "pip install -r requirements_dev.txt",
+	"postStartCommand": "make test-all",
+	"extensions": [
+		"ms-python.python",
+		"VisualStudioExptTeam.vscodeintellicode",
+		"njpwerner.autodocstring",
+		"ms-vscode.makefile-tools"
+	]
+}

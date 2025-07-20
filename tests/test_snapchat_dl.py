@@ -31,6 +31,7 @@ class TestSnapchat_dl(unittest.TestCase):
         )
         self.test_url404 = "https://google.com/error.html"
         self.username = "invalidusername"
+        self.spotlightid = "ccbfbac1-40c2-4348-9448-d37f36494380/375182782218240"
         self.html = open(
             "tests/mock_data/invalidusername.html", "r", encoding="utf8"
         ).read()
@@ -62,6 +63,12 @@ class TestSnapchat_dl(unittest.TestCase):
         """Test snapchat_dl Download."""
         api_response.return_value = self.html
         self.snapchat_dl.download(self.username)
+
+    @mock.patch("snapchat_dl.snapchat_dl.SnapchatDL._api_response")
+    def test_get_spotlight(self, api_response):
+        """Test snapchat_dl Download."""
+        api_response.return_value = self.html
+        self.snapchat_dl.download(self.spotlightid)
 
     @mock.patch("snapchat_dl.snapchat_dl.SnapchatDL._api_response")
     def test_no_stories(self, api_response):

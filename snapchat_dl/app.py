@@ -5,23 +5,17 @@ import time
 import pyperclip
 from loguru import logger
 
-from snapchat_dl.cli import parse_arguments
-from snapchat_dl.snapchat_dl import SnapchatDL
-from snapchat_dl.utils import (
-    NoStoriesFound,
-    UserNotFoundError,
-    search_usernames,
-    use_batch_file,
-    use_prefix_dir,
-)
+import cli
+import snapchat_dl
+import utils
 
 
 def main():
     """Download user stories from Snapchat."""
-    args = parse_arguments()
-    usernames = args.username + use_batch_file(args) + use_prefix_dir(args)
+    args = cli.parse_arguments()
+    usernames = args.username + utils.use_batch_file(args) + utils.use_prefix_dir(args)
 
-    downloader = SnapchatDL(
+    downloader = snapchat_dl.SnapchatDL(
         directory_prefix=args.save_prefix,
         max_workers=args.max_workers,
         limit_story=args.limit_story,
@@ -31,6 +25,7 @@ def main():
     )
 
     history = list()
+    print(usernames)
 
     def download_users(users: list, respect_history=False):
         """Download user story from usernames.
@@ -41,6 +36,7 @@ def main():
             log_str (str, optional): Log log_str to terminal. Defaults to None.
         """
         for username in users:
+            print("download_users: user found: " + username)
             time.sleep(args.sleep_interval)
 
             if respect_history is True:
@@ -48,12 +44,12 @@ def main():
                     history.append(username)
                     try:
                         downloader.download(username)
-                    except (NoStoriesFound, UserNotFoundError):
+                    except (utils.NoStoriesFound, utils.UserNotFoundError):
                         pass
             else:
                 try:
                     downloader.download(username)
-                except (NoStoriesFound, UserNotFoundError):
+                except (utils.NoStoriesFound, utils.UserNotFoundError):
                     pass
 
     try:
@@ -63,7 +59,7 @@ def main():
                 logger.info("Listening for clipboard change")
 
             while True:
-                usernames_clip = search_usernames(pyperclip.paste())
+                usernames_clip = utils.search_usernames(pyperclip.paste())
                 if len(usernames_clip) > 0:
                     download_users(usernames_clip, respect_history=True)
 

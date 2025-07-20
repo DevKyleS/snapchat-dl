@@ -1,0 +1,215 @@
+# this is to hit the snapchat api's directly
+
+
+# https://story.snapchat.com/p/ccbfbac1-40c2-4348-9448-d37f36494380/375182782218240
+
+# https://story.snapchat.com/api/proxy-to-backend/graphql
+# Payload
+{
+    "operationName": "PublishedPremiumStories",
+    "variables": {
+        "businessProfileId": "ccbfbac1-40c2-4348-9448-d37f36494380",
+        "seasonId": "f0b19725-2c15-494c-be46-b7abfd77aeec",
+        "cursor": "",
+        "limit": 10,
+        "country": "US",
+    },
+    "query": "query PublishedPremiumStories($businessProfileId: ID!, $seasonId: ID, $cursor: ID!, $limit: Int!, $country: String!) {
+  publisher(businessProfileId: $businessProfileId) {
+    businessProfileId
+    publishedPremiumStoriesConnection(
+      first: $limit
+      from: $cursor
+      seasonId: $seasonId
+      country: $country
+    ) {
+      ...PublishedPremiumStories
+      __typename
+    }
+    __typename
+  }
+}
+
+fragment PublishedPremiumStories on PublishedPremiumStoriesConnection {
+  premiumStories {
+    ...PublishedPremiumStory
+    __typename
+  }
+  pageInfo {
+    nextCursor
+    __typename
+  }
+  __typename
+}
+
+fragment PublishedPremiumStory on PremiumStory {
+  story {
+    ...PublishedStory
+    __typename
+  }
+  publishedTimeInSec
+  seasonNumber
+  episodeNumber
+  ownerBusinessProfileId
+  __typename
+}
+
+fragment PublishedStory on Story {
+  id
+  title
+  thumbnailUrl
+  type
+  videoTrackUrl
+  __typename
+}
+",
+}
+
+
+# Response
+{
+    "data": {
+        "publisher": {
+            "businessProfileId": "ccbfbac1-40c2-4348-9448-d37f36494380",
+            "publishedPremiumStoriesConnection": {
+                "premiumStories": [
+                    {
+                        "story": {
+                            "id": "375197634369536",
+                            "title": "Teaching An Old Dog New Tricks \uD83D\uDE02",
+                            "thumbnailUrl": "https://cf-st.sc-cdn.net/aps/bolt_stagg/aHR0cHM6Ly9jZi1zdC5zYy1jZG4ubmV0L2QvcWp4RHp0QXBRdjlRUWcwaEJ4ZExjLjMxMD9tbz1Ha0VhREJvQUdnQXlBZ1I5VUFWZ0FWb1lVSEpsYldsMWJWTjBiM0o1Vkdsc1pWWmhjbWxoYm5Sem9nRUxDTFlDSWdZS0FrZ0NFZ0NpQVFnSUFTSUVDZ0pJQVElM0QlM0QmdWM9NQ.RS540,0",
+                            "type": "UNKNOWN",
+                            "videoTrackUrl": "",
+                            "__typename": "Story",
+                        },
+                        "publishedTimeInSec": 1675535449,
+                        "seasonNumber": 20,
+                        "episodeNumber": 1,
+                        "ownerBusinessProfileId": "",
+                        "__typename": "PremiumStory",
+                    },
+                    {
+                        "story": {
+                            "id": "1436227581485056",
+                            "title": "Tails Spills The Tea",
+                            "thumbnailUrl": "https://cf-st.sc-cdn.net/aps/bolt_stagg/aHR0cHM6Ly9jZi1zdC5zYy1jZG4ubmV0L2Qvek0zU3AwdzFDbndxQURES1RoQ0pSLjMxMD9tbz1Ha0VhREJvQUdnQXlBZ1I5VUFWZ0FWb1lVSEpsYldsMWJWTjBiM0o1Vkdsc1pWWmhjbWxoYm5Sem9nRUxDTFlDSWdZS0FrZ0NFZ0NpQVFnSUFTSUVDZ0pJQVElM0QlM0QmdWM9NQ.RS540,0",
+                            "type": "UNKNOWN",
+                            "videoTrackUrl": "",
+                            "__typename": "Story",
+                        },
+                        "publishedTimeInSec": 1676140221,
+                        "seasonNumber": 20,
+                        "episodeNumber": 2,
+                        "ownerBusinessProfileId": "",
+                        "__typename": "PremiumStory",
+                    },
+                    {
+                        "story": {
+                            "id": "204734594226176",
+                            "title": "This Bear Likes What She Sees \uD83D\uDE02",
+                            "thumbnailUrl": "https://cf-st.sc-cdn.net/aps/bolt_stagg/aHR0cHM6Ly9jZi1zdC5zYy1jZG4ubmV0L2QvYjk3TzdLTVFFTmk5UFRNcnFGNHpxLjMxMD9tbz1Ha0VhREJvQUdnQXlBZ1I5VUFWZ0FWb1lVSEpsYldsMWJWTjBiM0o1Vkdsc1pWWmhjbWxoYm5Sem9nRUxDTFlDSWdZS0FrZ0NFZ0NpQVFnSUFTSUVDZ0pJQVElM0QlM0QmdWM9NQ.RS540,0",
+                            "type": "UNKNOWN",
+                            "videoTrackUrl": "",
+                            "__typename": "Story",
+                        },
+                        "publishedTimeInSec": 1676745058,
+                        "seasonNumber": 20,
+                        "episodeNumber": 3,
+                        "ownerBusinessProfileId": "",
+                        "__typename": "PremiumStory",
+                    },
+                    {
+                        "story": {
+                            "id": "375201342046208",
+                            "title": "The Doctor Has Some Regrets \uD83D\uDE02",
+                            "thumbnailUrl": "https://cf-st.sc-cdn.net/aps/bolt_stagg/aHR0cHM6Ly9jZi1zdC5zYy1jZG4ubmV0L2QvQ1JmclFQRzBVRldINlJhaXBZM1RTLjMxMD9tbz1Ha0VhREJvQUdnQXlBZ1I5VUFWZ0FWb1lVSEpsYldsMWJWTjBiM0o1Vkdsc1pWWmhjbWxoYm5Sem9nRUxDTFlDSWdZS0FrZ0NFZ0NpQVFnSUFTSUVDZ0pJQVElM0QlM0QmdWM9NQ.RS540,0",
+                            "type": "UNKNOWN",
+                            "videoTrackUrl": "",
+                            "__typename": "Story",
+                        },
+                        "publishedTimeInSec": 1677349804,
+                        "seasonNumber": 20,
+                        "episodeNumber": 4,
+                        "ownerBusinessProfileId": "",
+                        "__typename": "PremiumStory",
+                    },
+                    {
+                        "story": {
+                            "id": "1436231337885696",
+                            "title": "Sonic Is Gone \uD83D\uDC94",
+                            "thumbnailUrl": "https://cf-st.sc-cdn.net/aps/bolt_stagg/aHR0cHM6Ly9jZi1zdC5zYy1jZG4ubmV0L2QvMmdDUTNyNUlvRU5JUUZvTlp3MldVLjMxMD9tbz1Ha0VhREJvQUdnQXlBZ1I5VUFWZ0FWb1lVSEpsYldsMWJWTjBiM0o1Vkdsc1pWWmhjbWxoYm5Sem9nRUxDTFlDSWdZS0FrZ0NFZ0NpQVFnSUFTSUVDZ0pJQVElM0QlM0QmdWM9NQ.RS540,0",
+                            "type": "UNKNOWN",
+                            "videoTrackUrl": "",
+                            "__typename": "Story",
+                        },
+                        "publishedTimeInSec": 1677954624,
+                        "seasonNumber": 20,
+                        "episodeNumber": 5,
+                        "ownerBusinessProfileId": "",
+                        "__typename": "PremiumStory",
+                    },
+                    {
+                        "story": {
+                            "id": "2548938154051584",
+                            "title": "Dr Wily Doesn't Like This Diagnosis",
+                            "thumbnailUrl": "https://cf-st.sc-cdn.net/aps/bolt_stagg/aHR0cHM6Ly9jZi1zdC5zYy1jZG4ubmV0L2QvY2tuWTRBQUdja3c1Wk5aMXhtT2tBLjMxMD9tbz1Ha0VhREJvQUdnQXlBZ1I5VUFWZ0FWb1lVSEpsYldsMWJWTjBiM0o1Vkdsc1pWWmhjbWxoYm5Sem9nRUxDTFlDSWdZS0FrZ0NFZ0NpQVFnSUFTSUVDZ0pJQVElM0QlM0QmdWM9NQ.RS540,0",
+                            "type": "UNKNOWN",
+                            "videoTrackUrl": "",
+                            "__typename": "Story",
+                        },
+                        "publishedTimeInSec": 1678559458,
+                        "seasonNumber": 20,
+                        "episodeNumber": 6,
+                        "ownerBusinessProfileId": "",
+                        "__typename": "PremiumStory",
+                    },
+                ],
+                "pageInfo": {"nextCursor": "", "__typename": "PageInfo"},
+                "__typename": "PublishedPremiumStoriesConnection",
+            },
+            "__typename": "Publisher",
+        }
+    },
+    "extensions": {
+        "dataloader": {
+            "overall-statistics": {
+                "loadCount": 2,
+                "loadErrorCount": 0,
+                "loadErrorRatio": 0.0,
+                "batchInvokeCount": 2,
+                "batchLoadCount": 2,
+                "batchLoadRatio": 1.0,
+                "batchLoadExceptionCount": 0,
+                "batchLoadExceptionRatio": 0.0,
+                "cacheHitCount": 0,
+                "cacheHitRatio": 0.0,
+            },
+            "individual-statistics": {
+                "publishedPremiumStories": {
+                    "loadCount": 1,
+                    "loadErrorCount": 0,
+                    "loadErrorRatio": 0.0,
+                    "batchInvokeCount": 1,
+                    "batchLoadCount": 1,
+                    "batchLoadRatio": 1.0,
+                    "batchLoadExceptionCount": 0,
+                    "batchLoadExceptionRatio": 0.0,
+                    "cacheHitCount": 0,
+                    "cacheHitRatio": 0.0,
+                },
+                "publisher": {
+                    "loadCount": 1,
+                    "loadErrorCount": 0,
+                    "loadErrorRatio": 0.0,
+                    "batchInvokeCount": 1,
+                    "batchLoadCount": 1,
+                    "batchLoadRatio": 1.0,
+                    "batchLoadExceptionCount": 0,
+                    "batchLoadExceptionRatio": 0.0,
+                    "cacheHitCount": 0,
+                    "cacheHitRatio": 0.0,
+                },
+            },
+        }
+    },
+}

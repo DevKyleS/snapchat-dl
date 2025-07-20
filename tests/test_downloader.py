@@ -4,6 +4,11 @@ import os
 import shutil
 import unittest
 
+from snapchat_dl.snapchat_dl import SnapchatDL
+from snapchat_dl.utils import APIResponseError
+from snapchat_dl.utils import NoStoriesFound
+from snapchat_dl.utils import UserNotFoundError
+
 from requests.exceptions import HTTPError
 
 from snapchat_dl.downloader import download_url

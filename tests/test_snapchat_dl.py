@@ -7,9 +7,8 @@ import unittest
 from unittest import mock
 
 from snapchat_dl.snapchat_dl import SnapchatDL
-from snapchat_dl.utils import APIResponseError
-from snapchat_dl.utils import NoStoriesFound
-from snapchat_dl.utils import UserNotFoundError
+from snapchat_dl.utils import (APIResponseError, NoStoriesFound,
+                               UserNotFoundError)
 
 
 def teardown_module(module):

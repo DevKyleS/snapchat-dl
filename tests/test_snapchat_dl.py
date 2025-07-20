@@ -7,9 +7,8 @@ import unittest
 from unittest import mock
 
 from snapchat_dl.snapchat_dl import SnapchatDL
-from snapchat_dl.utils import APIResponseError
-from snapchat_dl.utils import NoStoriesFound
-from snapchat_dl.utils import UserNotFoundError
+from snapchat_dl.utils import (APIResponseError, NoStoriesFound,
+                               UserNotFoundError)
 
 
 def teardown_module(module):
@@ -27,7 +26,9 @@ class TestSnapchat_dl(unittest.TestCase):
             directory_prefix=".test-data",
             dump_json=True,
         )
-        self.test_url = "https://filesamples.com/samples/video/mp4/sample_640x360.mp4"
+        self.test_url = (
+            "https://sample-videos.com/video321/mp4/240/big_buck_bunny_240p_1mb.mp4"
+        )
         self.test_url404 = "https://google.com/error.html"
         self.username = "invalidusername"
         self.html = open(
@@ -47,7 +48,7 @@ class TestSnapchat_dl(unittest.TestCase):
     def test_invalid_username(self):
         """Test snapchat_dl Stories are not available."""
         with self.assertRaises(UserNotFoundError):
-            self.snapchat_dl.download("username")
+            self.snapchat_dl.download("use=rname")
 
     @mock.patch("snapchat_dl.snapchat_dl.SnapchatDL._api_response")
     def test_api_error(self, api_response):

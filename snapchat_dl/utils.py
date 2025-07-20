@@ -39,7 +39,7 @@ def strf_time(timestamp, format_str):
     Returns:
         str: timestamp formatted to custom format.
     """
-    return datetime.utcfromtimestamp(timestamp).strftime(format_str)
+    return datetime.fromtimestamp(timestamp).strftime(format_str)
 
 
 def valid_username(username):

@@ -4,7 +4,7 @@ blacken-docs==1.18.0
 bump2version==1.0.1
 coverage==7.5.4
 pre-commit==3.7.1
-pytest==8.2.2
+pytest==8.4.1
 reorder_python_imports==3.13.0
 Sphinx==7.3.7
 watchdog==4.0.1

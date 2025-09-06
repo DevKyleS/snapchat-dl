@@ -6,6 +6,6 @@ coverage==7.5.4
 pre-commit==3.7.1
 pytest==8.2.2
 reorder_python_imports==3.13.0
-Sphinx==7.3.7
+Sphinx==7.4.7
 watchdog==4.0.1
 wheel==0.43.0

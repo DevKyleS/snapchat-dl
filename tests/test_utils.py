@@ -1,9 +1,13 @@
 #!/usr/bin/env python
 """Tests for `snapchat_dl` package."""
+
+import os
+import time
 import unittest
 from argparse import Namespace
 
 from snapchat_dl.utils import search_usernames
+from snapchat_dl.utils import search_publisher_urls
 from snapchat_dl.utils import strf_time
 from snapchat_dl.utils import use_batch_file
 from snapchat_dl.utils import use_prefix_dir
@@ -17,12 +21,25 @@ class Test_utils(unittest.TestCase):
         """Test for invalid username."""
         self.assertFalse(valid_username("2323 2323"))
 
-    def test_strf_time(self):
-        """Test strf_time."""
-        self.assertEqual(
-            strf_time(978307200, "%Y-%m-%dT%H-%M-%S"),
-            "2001-01-01T00-00-00",
-        )
+    def test_strf_time_uses_utc(self):
+        """Test timestamps are formatted in UTC regardless of local timezone."""
+        if not hasattr(time, "tzset"):
+            self.skipTest("Changing the process timezone is not supported")
+
+        original_timezone = os.environ.get("TZ")
+        try:
+            os.environ["TZ"] = "HST10"
+            time.tzset()
+            self.assertEqual(
+                strf_time(978307200, "%Y-%m-%dT%H-%M-%S"),
+                "2001-01-01T00-00-00",
+            )
+        finally:
+            if original_timezone is None:
+                os.environ.pop("TZ", None)
+            else:
+                os.environ["TZ"] = original_timezone
+            time.tzset()
 
     def test_search_usernames(self):
         """Test usernames search in string."""
@@ -32,9 +49,32 @@ class Test_utils(unittest.TestCase):
             https://story.snapchat.com/s/user.name2
             https://story.snapchat.com/s/user_name
             https://story.snapchat.com/@user_name
+            https://story.snapchat.com/p/00000000-0000-4000-8000-000000000002/1234567890
+            https://www.snapchat.com/@testpublisher/highlight/00000000-0000-4000-8000-000000000001
         """
-        usernames = ["user.name2", "user_name", "username1"]
+        usernames = ["testpublisher", "user.name2", "user_name", "username1"]
         self.assertListEqual(search_usernames(string), usernames)
+
+    def test_search_publisher_urls(self):
+        text = """
+            https://story.snapchat.com/p/8af53eee-e298-40c4-9d6e-af20cf881b61
+            https://www.snapchat.com/p/8af53eee-e298-40c4-9d6e-af20cf881b61/3137373287454720
+            https://www.snapchat.com/p/8af53eee-e298-40c4-9d6e-af20cf881b61/spotlight/W7_EDlXWTBiXAEEniNoMPwAAYcGxsYWxldmNtAaFLLqK9AaFLLqKQAAAAAQ
+        """
+        self.assertListEqual(
+            search_publisher_urls(text),
+            [
+                "https://story.snapchat.com/p/8af53eee-e298-40c4-9d6e-af20cf881b61",
+                "https://www.snapchat.com/p/8af53eee-e298-40c4-9d6e-af20cf881b61/3137373287454720",
+                "https://www.snapchat.com/p/8af53eee-e298-40c4-9d6e-af20cf881b61/spotlight/W7_EDlXWTBiXAEEniNoMPwAAYcGxsYWxldmNtAaFLLqK9AaFLLqKQAAAAAQ",
+            ],
+        )
+
+    def test_search_usernames_ignores_official_publisher_url(self):
+        publisher_url = (
+            "https://story.snapchat.com/p/8af53eee-e298-40c4-9d6e-af20cf881b61"
+        )
+        self.assertEqual(search_usernames(publisher_url), [])
 
     def test_use_batch_file(self):
         args = Namespace(batch_file="tests/mock_data/batch_file.txt")

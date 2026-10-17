@@ -9,7 +9,12 @@ from urllib.parse import urlparse
 import requests
 from loguru import logger
 
-from snapchat_dl.downloader import download_url, download_m3u8_segments, combine_segments_with_ffmpeg, download_m3u8_direct_ffmpeg
+from snapchat_dl.downloader import (
+    download_url,
+    download_m3u8_segments,
+    combine_segments_with_ffmpeg,
+    download_m3u8_direct_ffmpeg,
+)
 from snapchat_dl.utils import APIResponseError
 from snapchat_dl.utils import dump_response
 from snapchat_dl.utils import MEDIA_TYPE
@@ -48,9 +53,20 @@ class SnapchatDL:
         parsed_url = urlparse(url_or_username)
         path_parts = [part for part in parsed_url.path.split("/") if part]
         is_publisher_story = (
-            parsed_url.netloc == "story.snapchat.com"
-            and len(path_parts) >= 3
+            parsed_url.netloc
+            in {
+                "story.snapchat.com",
+                "www.snapchat.com",
+                "snapchat.com",
+            }
+            and len(path_parts) in {2, 3}
             and path_parts[0] == "p"
+        )
+        is_publisher_spotlight = (
+            parsed_url.netloc in {"www.snapchat.com", "snapchat.com"}
+            and len(path_parts) == 4
+            and path_parts[0] == "p"
+            and path_parts[2] == "spotlight"
         )
         is_publisher_highlight = (
             parsed_url.netloc in {"www.snapchat.com", "snapchat.com"}
@@ -58,14 +74,19 @@ class SnapchatDL:
             and path_parts[0].startswith("@")
             and path_parts[1] == "highlight"
         )
-        return is_publisher_story or is_publisher_highlight
+        return is_publisher_story or is_publisher_spotlight or is_publisher_highlight
 
     def _parse_publisher_url(self, publisher_url):
         """Extract publisher and story identifiers from a supported URL."""
         parsed_url = urlparse(publisher_url)
         parts = [part for part in parsed_url.path.split("/") if part]
-        if parsed_url.netloc == "story.snapchat.com" and len(parts) >= 3 and parts[0] == "p":
-            return parts[1], parts[2]
+        if (
+            parsed_url.netloc
+            in {"story.snapchat.com", "www.snapchat.com", "snapchat.com"}
+            and len(parts) in {2, 3}
+            and parts[0] == "p"
+        ):
+            return parts[1], parts[2] if len(parts) == 3 else None
         if (
             parsed_url.netloc in {"www.snapchat.com", "snapchat.com"}
             and len(parts) >= 3
@@ -73,6 +94,13 @@ class SnapchatDL:
             and parts[1] == "highlight"
         ):
             return parts[0][1:], parts[2]
+        if (
+            parsed_url.netloc in {"www.snapchat.com", "snapchat.com"}
+            and len(parts) == 4
+            and parts[0] == "p"
+            and parts[2] == "spotlight"
+        ):
+            return parts[1], parts[3]
         raise ValueError("Invalid publisher URL format")
 
     def _api_response(self, username_or_url):
@@ -121,6 +149,7 @@ class SnapchatDL:
 
     def _extract_user_data(self, response_json):
         """Extract data for regular user profiles."""
+
         def util_web_user_info(content: dict):
             if "userProfile" in content["props"]["pageProps"]:
                 user_profile = content["props"]["pageProps"]["userProfile"]
@@ -147,6 +176,36 @@ class SnapchatDL:
 
     def _extract_publisher_data(self, response_json, story_id):
         """Extract data for publisher profiles."""
+        page_props = response_json["props"]["pageProps"]
+
+        # Spotlight pages use a separate feed schema from publisher stories.
+        spotlight_feed = page_props.get("spotlightFeed") or {}
+        for item in spotlight_feed.get("spotlightStories", []):
+            spotlight_story = item.get("story") or {}
+            if (spotlight_story.get("storyId") or {}).get("value") != story_id:
+                continue
+
+            snaps = [
+                snap
+                for snap in spotlight_story.get("snapList", [])
+                if snap.get("snapUrls", {}).get("mediaUrl")
+            ]
+            metadata = item.get("metadata") or {}
+            video_metadata = metadata.get("videoMetadata") or {}
+            creator = video_metadata.get("creator") or {}
+            creator_info = creator.get("personCreator") or {}
+            publisher_info = {"title": creator_info.get("name") or "Unknown Publisher"}
+
+            timestamp = "0"
+            if snaps:
+                timestamp = (snaps[0].get("timestampInSec") or {}).get(
+                    "value"
+                ) or timestamp
+            if timestamp == "0" and video_metadata.get("uploadDateMs"):
+                timestamp = str(int(video_metadata["uploadDateMs"]) // 1000)
+
+            return snaps, publisher_info, [], [], str(timestamp)
+
         def util_publisher_info(content: dict):
             page_props = content["props"]["pageProps"]
             if "publicProfileInfo" in page_props:
@@ -174,81 +233,112 @@ class SnapchatDL:
                         }
                     highlight_snaps.append(snap)
                 if highlight_snaps:
-                    timestamp = highlight_snaps[0].get("timestampInSec", {}).get(
-                        "value", "0"
+                    timestamp = (
+                        highlight_snaps[0].get("timestampInSec", {}).get("value", "0")
                     )
                     return highlight_snaps, timestamp
 
-            if "preselectedStory" in page_props and "premiumStory" in page_props["preselectedStory"]:
+            if (
+                "preselectedStory" in page_props
+                and "premiumStory" in page_props["preselectedStory"]
+            ):
                 premium_story = page_props["preselectedStory"]["premiumStory"]
                 if "playerStory" in premium_story:
                     player_story = premium_story["playerStory"]
-                    story_timestamp = premium_story.get("timestampInSec", {}).get("value", "0")
-                    if player_story.get("storyId", {}).get("value") == story_id:
-                        video_track = player_story.get("videoTrackUrl", {}).get("value")
+                    story_timestamp = (premium_story.get("timestampInSec") or {}).get(
+                        "value", "0"
+                    )
+                    selected_story_id = (player_story.get("storyId") or {}).get("value")
+                    if story_id is None or selected_story_id == story_id:
+                        video_track = (player_story.get("videoTrackUrl") or {}).get(
+                            "value"
+                        )
                         if video_track:
                             full_video_snap = {
                                 "snapIndex": 0,
                                 "snapId": {"value": story_id},
                                 "snapMediaType": 1,
                                 "snapUrls": {"mediaUrl": video_track},
-                                "storyTitle": player_story.get("storyTitle", {}).get("value", "story"),
+                                "storyTitle": (
+                                    player_story.get("storyTitle") or {}
+                                ).get("value", "story"),
                             }
                             return [full_video_snap], story_timestamp
 
                         snap_list = player_story.get("snapList", [])
-                        valid_snaps = [snap for snap in snap_list if snap.get("snapUrls", {}).get("mediaUrl")]
+                        valid_snaps = [
+                            snap
+                            for snap in snap_list
+                            if snap.get("snapUrls", {}).get("mediaUrl")
+                        ]
                         if valid_snaps:
                             return valid_snaps, story_timestamp
-                        
+
             # Then check premiumStoryList for specific story ID
             if "premiumStoryList" in page_props:
                 premium_stories = page_props["premiumStoryList"]
                 for story in premium_stories:
                     if "playerStory" in story:
                         player_story = story["playerStory"]
-                        if player_story.get("storyId", {}).get("value") == story_id:
-                            story_timestamp = story.get("timestampInSec", {}).get("value", "0")
-                            
+                        if (
+                            story_id is not None
+                            and (player_story.get("storyId") or {}).get("value")
+                            == story_id
+                        ):
+                            story_timestamp = (story.get("timestampInSec") or {}).get(
+                                "value", "0"
+                            )
+
                             # Check for videoTrackUrl first
-                            if "videoTrackUrl" in player_story and player_story["videoTrackUrl"].get("value"):
-                                video_url = player_story["videoTrackUrl"]["value"]
-                                story_title = player_story.get("storyTitle", {}).get("value", "story")
-                                story_id_value = player_story.get("storyId", {}).get("value", story_timestamp)
-                                
+                            video_url = (player_story.get("videoTrackUrl") or {}).get(
+                                "value"
+                            )
+                            if video_url:
+                                story_title = (
+                                    player_story.get("storyTitle") or {}
+                                ).get("value", "story")
+                                story_id_value = (
+                                    player_story.get("storyId") or {}
+                                ).get("value", story_timestamp)
+
                                 full_video_snap = {
                                     "snapIndex": 0,
                                     "snapId": {"value": story_id_value},
                                     "snapMediaType": 1,
                                     "snapUrls": {"mediaUrl": video_url},
-                                    "storyTitle": story_title
+                                    "storyTitle": story_title,
                                 }
                                 return [full_video_snap], story_timestamp
-                            
+
                             # Fall back to valid individual snaps
                             snap_list = player_story.get("snapList", [])
-                            valid_snaps = [snap for snap in snap_list if snap.get("snapUrls", {}).get("mediaUrl")]
+                            valid_snaps = [
+                                snap
+                                for snap in snap_list
+                                if snap.get("snapUrls", {}).get("mediaUrl")
+                            ]
                             if valid_snaps:
                                 return valid_snaps, story_timestamp
-                            
+
             return list(), "0"
 
         publisher_info = util_publisher_info(response_json)
         stories, story_timestamp = util_publisher_story(response_json, story_id)
-        
+
         return stories, publisher_info, [], [], story_timestamp
 
-    def download(self, username_or_url):
+    def download(self, username):
         """Download Snapchat Story for `username` or publisher URL.
 
         Args:
-            username_or_url (str): Snapchat `username` or publisher URL
+            username (str): Snapchat username or publisher URL
 
         Returns:
             [bool]: story downloader
         """
+        username_or_url = username
         result = self._web_fetch_story(username_or_url)
-        
+
         # Handle different return formats (user stories vs publisher stories)
         if self._is_publisher_url(username_or_url):
             stories, snap_user, _, _, story_timestamp = result
@@ -284,7 +374,7 @@ class SnapchatDL:
                 snap_id = media["snapId"]["value"]
                 media_url = media["snapUrls"]["mediaUrl"]
                 media_type = media["snapMediaType"]
-                
+
                 # Handle timestamp differently for publisher vs user stories
                 if self._is_publisher_url(username_or_url):
                     # For publisher stories, use the story timestamp for all snaps
@@ -292,14 +382,14 @@ class SnapchatDL:
                 else:
                     # For user stories, use the individual snap timestamp
                     timestamp = int(media["timestampInSec"]["value"])
-                    
+
                 date_str = strf_time(timestamp, "%Y-%m-%d")
 
                 dir_name = os.path.join(self.directory_prefix, dir_identifier, date_str)
 
                 # Determine file extension based on URL and media type
-                if '.m3u8' in media_url:
-                    file_extension = 'm3u8'
+                if ".m3u8" in media_url:
+                    file_extension = "m3u8"
                 else:
                     file_extension = MEDIA_TYPE[media_type]
 
@@ -314,16 +404,19 @@ class SnapchatDL:
                     dump_response(media_json, filename_json)
 
                 media_output = os.path.join(dir_name, filename)
-                
+
                 # Handle M3U8 files differently - download segments and combine
-                if file_extension == 'm3u8':
+                if file_extension == "m3u8":
                     # Create a subdirectory for the segments
                     segments_dir = os.path.join(dir_name, f"segments_{snap_id}")
-                    
+
                     # Download M3U8 segments
                     executor.submit(
-                        self._download_m3u8_story, media_url, segments_dir, media_output, 
-                        self.sleep_interval
+                        self._download_m3u8_story,
+                        media_url,
+                        segments_dir,
+                        media_output,
+                        self.sleep_interval,
                     )
                 else:
                     # Regular file download
@@ -336,7 +429,9 @@ class SnapchatDL:
 
         logger.info("[✔] {} stories downloaded".format(display_name, len(stories)))
 
-    def _download_m3u8_story(self, media_url: str, segments_dir: str, output_path: str, sleep_interval: int):
+    def _download_m3u8_story(
+        self, media_url: str, segments_dir: str, output_path: str, sleep_interval: int
+    ):
         """Download M3U8 story using optimized approach.
 
         Attempts direct FFmpeg download first (fastest), falls back to
@@ -350,15 +445,19 @@ class SnapchatDL:
         """
         try:
             # Primary approach: Direct FFmpeg download (most optimal)
-            video_output = output_path.replace('.m3u8', '.mp4')
+            video_output = output_path.replace(".m3u8", ".mp4")
 
             if not self.quiet:
                 logger.info("Attempting optimized direct M3U8 download...")
 
             if download_m3u8_direct_ffmpeg(media_url, video_output):
-                logger.info(f"Video downloaded successfully via direct FFmpeg: {video_output}")
+                logger.info(
+                    f"Video downloaded successfully via direct FFmpeg: {video_output}"
+                )
                 if not self.quiet:
-                    logger.info("Direct download completed - no segment processing needed")
+                    logger.info(
+                        "Direct download completed - no segment processing needed"
+                    )
 
                 # Also save the original M3U8 file for reference
                 try:
@@ -371,18 +470,22 @@ class SnapchatDL:
             if not self.quiet:
                 logger.info("Direct download failed, using segment-based fallback...")
 
-            segment_files = download_m3u8_segments(media_url, segments_dir, sleep_interval)
-            
+            segment_files = download_m3u8_segments(
+                media_url, segments_dir, sleep_interval
+            )
+
             if segment_files:
                 success = combine_segments_with_ffmpeg(segment_files, video_output)
-                
+
                 if success:
                     logger.info(f"Video combined successfully: {video_output}")
                     if not self.quiet:
                         logger.info(f"Segments saved in: {segments_dir}")
                 else:
-                    logger.warning(f"Could not combine segments. Individual segments saved in: {segments_dir}")
-                    
+                    logger.warning(
+                        f"Could not combine segments. Individual segments saved in: {segments_dir}"
+                    )
+
                 # Also save the original M3U8 file for reference
                 try:
                     download_url(media_url, output_path, 0)
@@ -390,6 +493,6 @@ class SnapchatDL:
                     logger.warning(f"Could not save M3U8 file: {e}")
             else:
                 logger.error(f"No segments downloaded for M3U8: {media_url}")
-                
+
         except Exception as e:
             logger.error(f"Failed to download M3U8 story: {e}")

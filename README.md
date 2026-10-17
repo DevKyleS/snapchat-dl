@@ -1,34 +1,34 @@
 <p>
   <div align="center">
   <h1>
-    Snapchat Public Stories Downloader<br /> <br />
-    <a href="https://pypi.python.org/pypi/snapchat-dl">
+    Snapchat Public Stories Downloader Community<br /> <br />
+    <a href="https://pypi.org/project/snapchat-dl-community/">
       <img
-        src="https://img.shields.io/pypi/v/snapchat-dl.svg?cacheSeconds=360"
+        src="https://img.shields.io/pypi/v/snapchat-dl-community.svg?cacheSeconds=360"
         alt="Python Package"
       />
     </a>
-    <a href="https://pypi.python.org/pypi/snapchat-dl">
+    <a href="https://pypi.org/project/snapchat-dl-community/">
       <img
-        src="https://img.shields.io/pypi/wheel/snapchat-dl"
+        src="https://img.shields.io/pypi/wheel/snapchat-dl-community"
         alt="Python Wheel"
       />
     </a>
-    <a href="https://pypi.python.org/pypi/snapchat-dl">
+    <a href="https://github.com/DevKyleS/snapchat-dl/actions/workflows/continuous-integration-pip.yml">
       <img
-        src="https://img.shields.io/github/actions/workflow/status/skyme5/snapchat-dl/continuous-integration-pip.yml?cacheSeconds=360"
+        src="https://img.shields.io/github/actions/workflow/status/DevKyleS/snapchat-dl/continuous-integration-pip.yml?cacheSeconds=360"
         alt="CI"
       />
     </a>
-    <a href="https://codecov.io/gh/skyme5/snapchat-dl">
+    <a href="https://codecov.io/gh/DevKyleS/snapchat-dl">
       <img
-        src="https://img.shields.io/codecov/c/github/skyme5/snapchat-dl?cacheSeconds=360"
+        src="https://img.shields.io/codecov/c/github/DevKyleS/snapchat-dl?cacheSeconds=360"
         alt="Code Coverage"
       />
     </a>
-    <a href="https://codecov.io/gh/skyme5/snapchat-dl">
+    <a href="https://pypi.org/project/snapchat-dl-community/">
       <img
-        src="https://img.shields.io/pypi/pyversions/snapchat-dl"
+        src="https://img.shields.io/pypi/pyversions/snapchat-dl-community"
         alt="Python Versions"
       />
     </a>
@@ -38,12 +38,6 @@
         alt="The Uncompromising Code Formatter"
       />
     </a>
-    <a href="https://pepy.tech/project/snapchat-dl">
-      <img
-        src="https://static.pepy.tech/badge/snapchat-dl"
-        alt="Monthly Downloads"
-      />
-    </a>
     <a href="https://opensource.org/licenses/MIT">
       <img
         src="https://img.shields.io/badge/License-MIT-blue.svg"
@@ -51,25 +45,35 @@
       />
     </a>
   </h1>
-  <a href="https://buymeacoffee.com/skyme5" target="_blank"><img src="https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png" alt="Buy Me A Coffee" style="height: 41px !important;width: 174px !important;" ></a>
   </div>
 </p>
 
 ### Installation
 
-Install using pip,
+This community-maintained fork keeps the `snapchat-dl` command and `snapchat_dl`
+Python import. It uses a separate PyPI distribution name and should replace,
+not be installed alongside, the original `snapchat-dl` package.
+
+For a fresh install:
 
 ```bash
-pip install snapchat-dl
+python -m pip install snapchat-dl-community
 ```
 
-Install from GitHub,
+To switch from the original PyPI package, uninstall it first so its files and
+console script do not conflict with the community distribution:
 
 ```bash
-pip install git+git://github.com/skyme5/snapchat-dl
+python -m pip uninstall snapchat-dl
+python -m pip install --upgrade snapchat-dl-community
+snapchat-dl --help
 ```
 
-Unix users might want to add `--user` flag to install without requiring `sudo`.
+To install the current source directly from GitHub:
+
+```bash
+python -m pip install --upgrade git+https://github.com/DevKyleS/snapchat-dl.git
+```
 
 ### Usage
 

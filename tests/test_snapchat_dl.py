@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 """Tests for `snapchat_dl` package."""
+
 import json
 import os
 import shutil
@@ -27,10 +28,8 @@ class TestSnapchat_dl(unittest.TestCase):
             directory_prefix=".test-data",
             dump_json=True,
         )
-        self.test_url = (
-            "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4"
-        )
-        self.test_url404 = "https://google.com/error.html"
+        self.test_url = "https://example.invalid/video.mp4"
+        self.test_url404 = "https://example.invalid/not-found.mp4"
         self.username = "invalidusername"
         self.html = open(
             "tests/mock_data/invalidusername.html", "r", encoding="utf8"
@@ -51,6 +50,13 @@ class TestSnapchat_dl(unittest.TestCase):
         with self.assertRaises(UserNotFoundError):
             self.snapchat_dl.download("use=rname")
 
+    @mock.patch("snapchat_dl.snapchat_dl.SnapchatDL._web_fetch_story")
+    def test_download_username_keyword_compatibility(self, web_fetch_story):
+        web_fetch_story.return_value = ([], {})
+
+        with self.assertRaises(NoStoriesFound):
+            self.snapchat_dl.download(username=self.username)
+
     @mock.patch("snapchat_dl.snapchat_dl.SnapchatDL._api_response")
     def test_api_error(self, api_response):
         """Test snapchat_dl Download."""
@@ -59,7 +65,8 @@ class TestSnapchat_dl(unittest.TestCase):
             self.snapchat_dl.download(self.username)
 
     @mock.patch("snapchat_dl.snapchat_dl.SnapchatDL._api_response")
-    def test_get_stories(self, api_response):
+    @mock.patch("snapchat_dl.snapchat_dl.download_url")
+    def test_get_stories(self, download_url, api_response):
         """Test snapchat_dl Download."""
         api_response.return_value = self.html
         self.snapchat_dl.download(self.username)
@@ -81,7 +88,11 @@ class TestSnapchat_dl(unittest.TestCase):
                             "playerStory": {
                                 "storyId": {"value": "other-story"},
                                 "snapList": [
-                                    {"snapUrls": {"mediaUrl": "https://example.com/wrong.m3u8"}}
+                                    {
+                                        "snapUrls": {
+                                            "mediaUrl": "https://example.com/wrong.m3u8"
+                                        }
+                                    }
                                 ],
                             },
                             "timestampInSec": {"value": "100"},
@@ -91,7 +102,9 @@ class TestSnapchat_dl(unittest.TestCase):
                         {
                             "playerStory": {
                                 "storyId": {"value": "requested-story"},
-                                "videoTrackUrl": {"value": "https://example.com/right.m3u8"},
+                                "videoTrackUrl": {
+                                    "value": "https://example.com/right.m3u8"
+                                },
                                 "storyTitle": {"value": "Requested"},
                             },
                             "timestampInSec": {"value": "200"},
@@ -106,7 +119,9 @@ class TestSnapchat_dl(unittest.TestCase):
         )
 
         self.assertEqual(publisher["title"], "Publisher")
-        self.assertEqual(stories[0]["snapUrls"]["mediaUrl"], "https://example.com/right.m3u8")
+        self.assertEqual(
+            stories[0]["snapUrls"]["mediaUrl"], "https://example.com/right.m3u8"
+        )
         self.assertEqual(stories[0]["snapId"]["value"], "requested-story")
         self.assertEqual(timestamp, "200")
 
@@ -119,7 +134,9 @@ class TestSnapchat_dl(unittest.TestCase):
                         {
                             "playerStory": {
                                 "storyId": {"value": "another-story"},
-                                "videoTrackUrl": {"value": "https://example.com/other.m3u8"},
+                                "videoTrackUrl": {
+                                    "value": "https://example.com/other.m3u8"
+                                },
                             }
                         }
                     ],
@@ -134,20 +151,20 @@ class TestSnapchat_dl(unittest.TestCase):
         self.assertEqual(stories, [])
 
     def test_publisher_highlight_url_and_data(self):
-        highlight_id = "34d3f5d1-3b9d-5cbb-b8ae-af9457be9544"
+        highlight_id = "00000000-0000-4000-8000-000000000001"
         highlight_url = (
-            "https://www.snapchat.com/@mashedscc4/highlight/" + highlight_id
+            "https://www.snapchat.com/@testpublisher/highlight/" + highlight_id
         )
         self.assertTrue(self.snapchat_dl._is_publisher_url(highlight_url))
         self.assertEqual(
             self.snapchat_dl._parse_publisher_url(highlight_url),
-            ("mashedscc4", highlight_id),
+            ("testpublisher", highlight_id),
         )
 
         response_json = {
             "props": {
                 "pageProps": {
-                    "publicUserProfile": {"title": "Mashed"},
+                    "publicUserProfile": {"title": "Test Publisher"},
                     "highlight": {
                         "highlightId": {"value": highlight_id},
                         "snapList": [
@@ -157,7 +174,9 @@ class TestSnapchat_dl(unittest.TestCase):
                                 "snapMediaType": 1,
                                 "timestampInSec": {"value": "1791387926"},
                                 "snapUrls": {
-                                    "mediaUrl": "https://cdn.example/{}.mp4".format(index)
+                                    "mediaUrl": "https://cdn.example/{}.mp4".format(
+                                        index
+                                    )
                                 },
                             }
                             for index in range(3)
@@ -171,10 +190,126 @@ class TestSnapchat_dl(unittest.TestCase):
             response_json, highlight_id
         )
 
-        self.assertEqual(publisher["title"], "Mashed")
+        self.assertEqual(publisher["title"], "Test Publisher")
         self.assertEqual(len(stories), 3)
         self.assertEqual(
             [story["snapId"]["value"] for story in stories],
-            ["{}_0".format(highlight_id), "{}_1".format(highlight_id), "{}_2".format(highlight_id)],
+            [
+                "{}_0".format(highlight_id),
+                "{}_1".format(highlight_id),
+                "{}_2".format(highlight_id),
+            ],
         )
         self.assertEqual(timestamp, "1791387926")
+
+    def test_official_team_snapchat_publisher_url(self):
+        publisher_id = "8af53eee-e298-40c4-9d6e-af20cf881b61"
+        story_id = "3137373287454720"
+        publisher_url = "https://story.snapchat.com/p/" + publisher_id
+        story_url = "https://www.snapchat.com/p/{}/{}".format(publisher_id, story_id)
+
+        self.assertTrue(self.snapchat_dl._is_publisher_url(publisher_url))
+        self.assertTrue(self.snapchat_dl._is_publisher_url(story_url))
+        self.assertEqual(
+            self.snapchat_dl._parse_publisher_url(publisher_url),
+            (publisher_id, None),
+        )
+        self.assertEqual(
+            self.snapchat_dl._parse_publisher_url(story_url),
+            (publisher_id, story_id),
+        )
+
+        response_json = {
+            "props": {
+                "pageProps": {
+                    "publicProfileInfo": {"title": "Team Snapchat"},
+                    "preselectedStory": {
+                        "premiumStory": {
+                            "playerStory": {
+                                "storyId": {"value": story_id},
+                                "storyTitle": {
+                                    "value": "Turn it up with Chantel Jeffries"
+                                },
+                                "snapList": [
+                                    {
+                                        "snapIndex": 0,
+                                        "snapId": {"value": "official-snap-0"},
+                                        "snapMediaType": 1,
+                                        "snapUrls": {
+                                            "mediaUrl": "https://cdn.example/official-snap.mp4"
+                                        },
+                                    }
+                                ],
+                            },
+                            "timestampInSec": {"value": "1774430820"},
+                        }
+                    },
+                }
+            }
+        }
+
+        stories, publisher, _, _, timestamp = self.snapchat_dl._extract_publisher_data(
+            response_json, None
+        )
+
+        self.assertEqual(publisher["title"], "Team Snapchat")
+        self.assertEqual(stories[0]["snapId"]["value"], "official-snap-0")
+        self.assertEqual(timestamp, "1774430820")
+
+    def test_official_team_snapchat_spotlight_url(self):
+        publisher_id = "8af53eee-e298-40c4-9d6e-af20cf881b61"
+        spotlight_id = "W7_EDlXWTBiXAEEniNoMPwAAYcGxsYWxldmNtAaFLLqK9AaFLLqKQAAAAAQ"
+        spotlight_url = "https://www.snapchat.com/p/{}/spotlight/{}".format(
+            publisher_id, spotlight_id
+        )
+
+        self.assertTrue(self.snapchat_dl._is_publisher_url(spotlight_url))
+        self.assertEqual(
+            self.snapchat_dl._parse_publisher_url(spotlight_url),
+            (publisher_id, spotlight_id),
+        )
+
+        response_json = {
+            "props": {
+                "pageProps": {
+                    "spotlightFeed": {
+                        "spotlightStories": [
+                            {
+                                "story": {
+                                    "storyId": {"value": spotlight_id},
+                                    "snapList": [
+                                        {
+                                            "snapIndex": 0,
+                                            "snapId": {"value": spotlight_id},
+                                            "snapMediaType": 1,
+                                            "timestampInSec": {"value": "1792262709"},
+                                            "snapUrls": {
+                                                "mediaUrl": "https://cdn.example/spotlight.mp4"
+                                            },
+                                        }
+                                    ],
+                                },
+                                "metadata": {
+                                    "videoMetadata": {
+                                        "creator": {
+                                            "$case": "personCreator",
+                                            "personCreator": {"name": "Team Snapchat"},
+                                        }
+                                    }
+                                },
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+
+        stories, publisher, _, _, timestamp = self.snapchat_dl._extract_publisher_data(
+            response_json, spotlight_id
+        )
+
+        self.assertEqual(publisher["title"], "Team Snapchat")
+        self.assertEqual(
+            stories[0]["snapUrls"]["mediaUrl"], "https://cdn.example/spotlight.mp4"
+        )
+        self.assertEqual(timestamp, "1792262709")

@@ -8,13 +8,31 @@ Installation
 Stable release
 --------------
 
-To install Snapchat Downloader, run this command in your terminal:
+This community-maintained fork keeps the ``snapchat-dl`` command and the
+``snapchat_dl`` Python import. It has a separate PyPI distribution name and
+should replace, not be installed alongside, the original ``snapchat-dl``
+package.
+
+For a fresh install, run:
 
 .. code-block:: console
 
-    $ pip install snapchat-dl
+    $ python -m pip install snapchat-dl-community
 
-This is the preferred method to install Snapchat Downloader, as it will always install the most recent stable release.
+To switch from the original package, uninstall it first so its files and
+console script do not conflict with the community distribution:
+
+.. code-block:: console
+
+    $ python -m pip uninstall snapchat-dl
+    $ python -m pip install --upgrade snapchat-dl-community
+    $ snapchat-dl --help
+
+To install the current source directly from GitHub:
+
+.. code-block:: console
+
+    $ python -m pip install --upgrade git+https://github.com/DevKyleS/snapchat-dl.git
 
 If you don't have `pip`_ installed, this `Python installation guide`_ can guide
 you through the process.
@@ -32,13 +50,13 @@ You can either clone the public repository:
 
 .. code-block:: console
 
-    $ git clone git://github.com/skyme5/snapchat-dl
+    $ git clone https://github.com/DevKyleS/snapchat-dl.git
 
 Or download the `tarball`_:
 
 .. code-block:: console
 
-    $ curl -OJL https://github.com/skyme5/snapchat-dl/tarball/master
+    $ curl -L -o snapchat-dl-community.tar.gz https://github.com/DevKyleS/snapchat-dl/archive/refs/heads/main.tar.gz
 
 Once you have a copy of the source, you can install it with:
 
@@ -47,5 +65,5 @@ Once you have a copy of the source, you can install it with:
     $ python setup.py install
 
 
-.. _Github repo: https://github.com/skyme5/snapchat-dl
-.. _tarball: https://github.com/skyme5/snapchat-dl/tarball/master
+.. _Github repo: https://github.com/DevKyleS/snapchat-dl
+.. _tarball: https://github.com/DevKyleS/snapchat-dl/archive/refs/heads/main.tar.gz

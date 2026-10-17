@@ -1,4 +1,5 @@
 """Console script for snapchat_dl."""
+
 import argparse
 import os
 import sys

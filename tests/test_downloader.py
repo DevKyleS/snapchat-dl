@@ -25,22 +25,45 @@ class Test_downloader(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        self.test_url = (
-            "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4"
-        )
-        self.test_url404 = "https://google.com/error.html"
+        self.test_url = "https://example.invalid/video.mp4"
+        self.test_url404 = "https://example.invalid/not-found.mp4"
 
-    def test_download_url(self):
+    def _mock_response(self, status_code=200, content=b"video"):
+        response = mock.Mock()
+        response.status_code = status_code
+        response.headers = {"content-length": str(len(content))}
+        response.iter_content.return_value = [content]
+        return response
+
+    @mock.patch("snapchat_dl.downloader.requests.get")
+    def test_download_url(self, get):
         """Test snapchat_dl download_url."""
+        get.return_value = self._mock_response()
+
         download_url(self.test_url, ".test-data/test_dl_23.mp4", sleep_interval=0)
 
-    def test_empty_download(self):
+        with open(".test-data/test_dl_23.mp4", "rb") as downloaded_file:
+            self.assertEqual(downloaded_file.read(), b"video")
+
+    @mock.patch("snapchat_dl.downloader.requests.get")
+    def test_empty_download(self, get):
         """Test snapchat_dl download_url."""
-        open(".test-data/test_dl_23.mp4", "w").close()
+        get.return_value = self._mock_response()
+        with open(".test-data/test_dl_23.mp4", "wb"):
+            pass
+
         download_url(self.test_url, ".test-data/test_dl_23.mp4", sleep_interval=0)
 
-    def test_download_url_raise(self):
+        with open(".test-data/test_dl_23.mp4", "rb") as downloaded_file:
+            self.assertEqual(downloaded_file.read(), b"video")
+
+    @mock.patch("snapchat_dl.downloader.requests.get")
+    def test_download_url_raise(self, get):
         """Test snapchat_dl download_url with invalid url."""
+        response = self._mock_response(status_code=404, content=b"")
+        response.raise_for_status.side_effect = HTTPError("404 Not Found")
+        get.return_value = response
+
         with self.assertRaises(HTTPError):
             download_url(
                 self.test_url404, ".test-data/test_dl_23.mp4", sleep_interval=0
@@ -59,7 +82,9 @@ class Test_downloader(unittest.TestCase):
             output_path = os.path.join(temp_dir, "video.mp4")
 
             self.assertTrue(
-                download_m3u8_direct_ffmpeg("https://example.com/video.m3u8", output_path)
+                download_m3u8_direct_ffmpeg(
+                    "https://example.com/video.m3u8", output_path
+                )
             )
 
             self.assertEqual(os.path.getsize(output_path), 5)

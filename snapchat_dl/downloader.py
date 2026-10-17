@@ -488,6 +488,8 @@ def _process_byterange_m3u8(
 
     lines = playlist_content.split("\n")
     current_byterange = None
+    previous_byterange = None
+    previous_segment_url = None
     segment_count = 0
 
     for i, line in enumerate(lines):
@@ -503,8 +505,10 @@ def _process_byterange_m3u8(
             else:
                 # Only length provided, offset continues from previous segment
                 length = int(byterange_part)
-                if current_byterange:
-                    prev_length, prev_offset = current_byterange
+                next_uri = lines[i + 1].strip() if i + 1 < len(lines) else ""
+                next_url = urllib.parse.urljoin(base_url, next_uri)
+                if previous_byterange and next_url == previous_segment_url:
+                    prev_length, prev_offset = previous_byterange
                     current_byterange = (length, prev_offset + prev_length)
                 else:
                     current_byterange = (length, 0)
@@ -562,6 +566,9 @@ def _process_byterange_m3u8(
                 )
                 segment_files.append(segment_path)
                 segment_count += 1
+                if current_byterange:
+                    previous_byterange = current_byterange
+                    previous_segment_url = segment_url
 
                 if segment_count % 10 == 0:  # Log progress every 10 segments
                     logger.info(f"Downloaded {segment_count} video segments...")

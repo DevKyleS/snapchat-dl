@@ -51,6 +51,65 @@ class TestSnapchat_dl(unittest.TestCase):
         with self.assertRaises(UserNotFoundError):
             self.snapchat_dl.download("use=rname")
 
+    def test_parse_publisher_url_rejects_invalid_format(self):
+        with self.assertRaises(ValueError):
+            self.snapchat_dl._parse_publisher_url(
+                "https://snapchat.com/not-a-publisher"
+            )
+
+    @mock.patch("snapchat_dl.snapchat_dl.requests.get")
+    def test_api_response_fetches_publisher_url_directly(self, get):
+        get.return_value = mock.Mock(text="publisher page")
+        publisher_url = "https://story.snapchat.com/p/publisher-id/story-id"
+
+        self.assertEqual(
+            self.snapchat_dl._api_response(publisher_url), "publisher page"
+        )
+
+        self.assertEqual(get.call_args.args[0], publisher_url)
+
+    @mock.patch("snapchat_dl.snapchat_dl.SnapchatDL._api_response")
+    def test_web_fetch_story_extracts_publisher_payload(self, api_response):
+        publisher_url = "https://story.snapchat.com/p/publisher-id/story-id"
+        payload = {
+            "props": {
+                "pageProps": {
+                    "publicProfileInfo": {"title": "Publisher"},
+                    "premiumStoryList": [],
+                }
+            }
+        }
+        api_response.return_value = (
+            '<script id="__NEXT_DATA__" type="application/json">'
+            + json.dumps(payload)
+            + "</script>"
+        )
+
+        stories, publisher, _, _, timestamp = self.snapchat_dl._web_fetch_story(
+            publisher_url
+        )
+
+        self.assertEqual(stories, [])
+        self.assertEqual(publisher["title"], "Publisher")
+        self.assertEqual(timestamp, "0")
+
+    def test_extract_user_data_without_stories_or_highlights(self):
+        response_json = {
+            "props": {
+                "pageProps": {
+                    "userProfile": {
+                        "$case": "publicUserInfo",
+                        "publicUserInfo": {"username": "sample"},
+                    }
+                }
+            }
+        }
+
+        self.assertEqual(
+            self.snapchat_dl._extract_user_data(response_json),
+            ([], {"username": "sample"}, [], []),
+        )
+
     @mock.patch("snapchat_dl.snapchat_dl.SnapchatDL._web_fetch_story")
     def test_download_username_keyword_compatibility(self, web_fetch_story):
         web_fetch_story.return_value = ([], {})
@@ -315,6 +374,133 @@ class TestSnapchat_dl(unittest.TestCase):
         )
         self.assertEqual(timestamp, "1792262709")
 
+    def test_spotlight_uses_upload_date_when_snap_timestamp_is_missing(self):
+        response_json = {
+            "props": {
+                "pageProps": {
+                    "spotlightFeed": {
+                        "spotlightStories": [
+                            {"story": {"storyId": {"value": "other"}}},
+                            {
+                                "story": {
+                                    "storyId": {"value": "wanted"},
+                                    "snapList": [{"snapUrls": {}}],
+                                },
+                                "metadata": {
+                                    "videoMetadata": {
+                                        "uploadDateMs": 1700000000123,
+                                        "creator": {},
+                                    }
+                                },
+                            },
+                        ]
+                    }
+                }
+            }
+        }
+
+        stories, publisher, _, _, timestamp = self.snapchat_dl._extract_publisher_data(
+            response_json, "wanted"
+        )
+
+        self.assertEqual(stories, [])
+        self.assertEqual(publisher["title"], "Unknown Publisher")
+        self.assertEqual(timestamp, "1700000000")
+
+    def test_publisher_data_without_profile_raises_user_not_found(self):
+        with self.assertRaises(UserNotFoundError):
+            self.snapchat_dl._extract_publisher_data(
+                {"props": {"pageProps": {}}}, "missing"
+            )
+
+    def test_highlight_skips_snaps_without_media(self):
+        highlight_id = "00000000-0000-4000-8000-000000000002"
+        response_json = {
+            "props": {
+                "pageProps": {
+                    "publicUserProfile": {"title": "Publisher"},
+                    "highlight": {
+                        "highlightId": {"value": highlight_id},
+                        "snapList": [
+                            {"snapUrls": {}},
+                            {
+                                "snapIndex": 4,
+                                "snapUrls": {
+                                    "mediaUrl": "https://cdn.example/clip.mp4"
+                                },
+                            },
+                        ],
+                    },
+                }
+            }
+        }
+
+        stories, _, _, _, _ = self.snapchat_dl._extract_publisher_data(
+            response_json, highlight_id
+        )
+
+        self.assertEqual(len(stories), 1)
+        self.assertEqual(stories[0]["snapId"]["value"], "{}_4".format(highlight_id))
+
+    def test_preselected_publisher_video_track_is_extracted(self):
+        response_json = {
+            "props": {
+                "pageProps": {
+                    "publicProfileInfo": {"title": "Publisher"},
+                    "preselectedStory": {
+                        "premiumStory": {
+                            "playerStory": {
+                                "storyId": {"value": "wanted"},
+                                "videoTrackUrl": {
+                                    "value": "https://cdn.example/video.m3u8"
+                                },
+                            },
+                            "timestampInSec": {"value": "123"},
+                        }
+                    },
+                }
+            }
+        }
+
+        stories, _, _, _, timestamp = self.snapchat_dl._extract_publisher_data(
+            response_json, "wanted"
+        )
+
+        self.assertEqual(
+            stories[0]["snapUrls"]["mediaUrl"], "https://cdn.example/video.m3u8"
+        )
+        self.assertEqual(stories[0]["storyTitle"], "story")
+        self.assertEqual(timestamp, "123")
+
+    def test_premium_story_list_falls_back_to_valid_snaps(self):
+        valid_snap = {
+            "snapId": {"value": "snap-1"},
+            "snapUrls": {"mediaUrl": "https://cdn.example/snap.mp4"},
+        }
+        response_json = {
+            "props": {
+                "pageProps": {
+                    "publicProfileInfo": {"title": "Publisher"},
+                    "premiumStoryList": [
+                        {
+                            "playerStory": {
+                                "storyId": {"value": "wanted"},
+                                "snapList": [{"snapUrls": {}}, valid_snap],
+                            },
+                            "timestampInSec": {"value": "456"},
+                        }
+                    ],
+                }
+            }
+        }
+
+        stories, _, _, _, timestamp = self.snapchat_dl._extract_publisher_data(
+            response_json, "wanted"
+        )
+
+        self.assertEqual(stories, [valid_snap])
+        self.assertEqual(timestamp, "456")
+
     @mock.patch("snapchat_dl.snapchat_dl.download_url")
     @mock.patch("snapchat_dl.snapchat_dl.download_m3u8_direct_ffmpeg")
     def test_m3u8_story_saves_playlist_after_direct_download(self, direct, download):
@@ -334,6 +520,124 @@ class TestSnapchat_dl(unittest.TestCase):
         download.assert_called_once_with(
             "https://cdn.example/story.m3u8", output_path, 0
         )
+
+    @mock.patch("snapchat_dl.snapchat_dl.download_url", side_effect=OSError("offline"))
+    @mock.patch(
+        "snapchat_dl.snapchat_dl.download_m3u8_direct_ffmpeg", return_value=True
+    )
+    def test_m3u8_direct_success_handles_playlist_save_error(self, direct, download):
+        self.snapchat_dl.quiet = False
+        output_path = os.path.join(self.snapchat_dl.directory_prefix, "story.m3u8")
+
+        self.snapchat_dl._download_m3u8_story(
+            "https://cdn.example/story.m3u8",
+            os.path.join(self.snapchat_dl.directory_prefix, "segments"),
+            output_path,
+            0,
+        )
+
+        direct.assert_called_once()
+        download.assert_called_once_with(
+            "https://cdn.example/story.m3u8", output_path, 0
+        )
+
+    @mock.patch("snapchat_dl.snapchat_dl.download_url", side_effect=OSError("offline"))
+    @mock.patch(
+        "snapchat_dl.snapchat_dl.combine_segments_with_ffmpeg", return_value=True
+    )
+    @mock.patch(
+        "snapchat_dl.snapchat_dl.download_m3u8_segments", return_value=["segment.ts"]
+    )
+    @mock.patch(
+        "snapchat_dl.snapchat_dl.download_m3u8_direct_ffmpeg", return_value=False
+    )
+    def test_m3u8_fallback_success_logs_and_handles_playlist_save_error(
+        self, direct, segments, combine, download
+    ):
+        self.snapchat_dl.quiet = False
+        output_path = os.path.join(self.snapchat_dl.directory_prefix, "story.m3u8")
+        segments_dir = os.path.join(self.snapchat_dl.directory_prefix, "segments")
+
+        self.snapchat_dl._download_m3u8_story(
+            "https://cdn.example/story.m3u8", segments_dir, output_path, 0
+        )
+
+        combine.assert_called_once_with(
+            ["segment.ts"], output_path.replace(".m3u8", ".mp4")
+        )
+        download.assert_called_once_with(
+            "https://cdn.example/story.m3u8", output_path, 0
+        )
+
+    @mock.patch(
+        "snapchat_dl.snapchat_dl.combine_segments_with_ffmpeg", return_value=False
+    )
+    @mock.patch(
+        "snapchat_dl.snapchat_dl.download_m3u8_segments", return_value=["segment.ts"]
+    )
+    @mock.patch(
+        "snapchat_dl.snapchat_dl.download_m3u8_direct_ffmpeg", return_value=False
+    )
+    def test_m3u8_fallback_logs_when_combine_fails(self, direct, segments, combine):
+        self.snapchat_dl.quiet = False
+
+        self.snapchat_dl._download_m3u8_story(
+            "https://cdn.example/story.m3u8",
+            os.path.join(self.snapchat_dl.directory_prefix, "segments"),
+            os.path.join(self.snapchat_dl.directory_prefix, "story.m3u8"),
+            0,
+        )
+
+        combine.assert_called_once()
+
+    @mock.patch(
+        "snapchat_dl.snapchat_dl.download_m3u8_direct_ffmpeg",
+        side_effect=RuntimeError("ffmpeg crashed"),
+    )
+    def test_m3u8_story_handles_unexpected_errors(self, direct):
+        self.snapchat_dl._download_m3u8_story(
+            "https://cdn.example/story.m3u8",
+            os.path.join(self.snapchat_dl.directory_prefix, "segments"),
+            os.path.join(self.snapchat_dl.directory_prefix, "story.m3u8"),
+            0,
+        )
+
+        direct.assert_called_once()
+
+    @mock.patch("snapchat_dl.snapchat_dl.dump_response")
+    @mock.patch("snapchat_dl.snapchat_dl.concurrent.futures.ThreadPoolExecutor")
+    @mock.patch("snapchat_dl.snapchat_dl.SnapchatDL._web_fetch_story")
+    def test_publisher_download_submits_m3u8_worker(
+        self, web_fetch_story, executor_class, dump_response
+    ):
+        story = {
+            "snapId": {"value": "snap-id"},
+            "snapUrls": {"mediaUrl": "https://cdn.example/story.m3u8"},
+            "snapMediaType": 1,
+        }
+        web_fetch_story.return_value = (
+            [story],
+            {"title": "Publisher"},
+            [],
+            [],
+            "1700000000",
+        )
+        publisher_url = "https://story.snapchat.com/p/publisher-id/story-id"
+
+        self.snapchat_dl.download(publisher_url)
+
+        submit = executor_class.return_value.submit
+        self.assertEqual(submit.call_count, 1)
+        args = submit.call_args.args
+        self.assertEqual(args[1], story["snapUrls"]["mediaUrl"])
+        self.assertTrue(
+            args[2].endswith("publisher_publisher-id/2023-11-14/segments_snap-id")
+        )
+        self.assertTrue(
+            args[3].endswith("2023-11-14_22-13-20 snap-id publisher_publisher-id.m3u8")
+        )
+        self.assertEqual(args[4], self.snapchat_dl.sleep_interval)
+        dump_response.assert_called_once()
 
     @mock.patch("snapchat_dl.snapchat_dl.download_url")
     @mock.patch("snapchat_dl.snapchat_dl.combine_segments_with_ffmpeg")

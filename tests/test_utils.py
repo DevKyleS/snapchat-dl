@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 """Tests for `snapchat_dl` package."""
+
 import os
 import time
 import unittest

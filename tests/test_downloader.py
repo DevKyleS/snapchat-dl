@@ -25,9 +25,7 @@ class Test_downloader(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
-        self.test_url = (
-            "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4"
-        )
+        self.test_url = "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4"
         self.test_url404 = "https://google.com/error.html"
 
     def test_download_url(self):
@@ -59,7 +57,9 @@ class Test_downloader(unittest.TestCase):
             output_path = os.path.join(temp_dir, "video.mp4")
 
             self.assertTrue(
-                download_m3u8_direct_ffmpeg("https://example.com/video.m3u8", output_path)
+                download_m3u8_direct_ffmpeg(
+                    "https://example.com/video.m3u8", output_path
+                )
             )
 
             self.assertEqual(os.path.getsize(output_path), 5)

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 """Tests for `snapchat_dl` package."""
+
 import json
 import os
 import shutil
@@ -27,9 +28,7 @@ class TestSnapchat_dl(unittest.TestCase):
             directory_prefix=".test-data",
             dump_json=True,
         )
-        self.test_url = (
-            "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4"
-        )
+        self.test_url = "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4"
         self.test_url404 = "https://google.com/error.html"
         self.username = "invalidusername"
         self.html = open(
@@ -81,7 +80,11 @@ class TestSnapchat_dl(unittest.TestCase):
                             "playerStory": {
                                 "storyId": {"value": "other-story"},
                                 "snapList": [
-                                    {"snapUrls": {"mediaUrl": "https://example.com/wrong.m3u8"}}
+                                    {
+                                        "snapUrls": {
+                                            "mediaUrl": "https://example.com/wrong.m3u8"
+                                        }
+                                    }
                                 ],
                             },
                             "timestampInSec": {"value": "100"},
@@ -91,7 +94,9 @@ class TestSnapchat_dl(unittest.TestCase):
                         {
                             "playerStory": {
                                 "storyId": {"value": "requested-story"},
-                                "videoTrackUrl": {"value": "https://example.com/right.m3u8"},
+                                "videoTrackUrl": {
+                                    "value": "https://example.com/right.m3u8"
+                                },
                                 "storyTitle": {"value": "Requested"},
                             },
                             "timestampInSec": {"value": "200"},
@@ -106,7 +111,9 @@ class TestSnapchat_dl(unittest.TestCase):
         )
 
         self.assertEqual(publisher["title"], "Publisher")
-        self.assertEqual(stories[0]["snapUrls"]["mediaUrl"], "https://example.com/right.m3u8")
+        self.assertEqual(
+            stories[0]["snapUrls"]["mediaUrl"], "https://example.com/right.m3u8"
+        )
         self.assertEqual(stories[0]["snapId"]["value"], "requested-story")
         self.assertEqual(timestamp, "200")
 
@@ -119,7 +126,9 @@ class TestSnapchat_dl(unittest.TestCase):
                         {
                             "playerStory": {
                                 "storyId": {"value": "another-story"},
-                                "videoTrackUrl": {"value": "https://example.com/other.m3u8"},
+                                "videoTrackUrl": {
+                                    "value": "https://example.com/other.m3u8"
+                                },
                             }
                         }
                     ],
@@ -135,9 +144,7 @@ class TestSnapchat_dl(unittest.TestCase):
 
     def test_publisher_highlight_url_and_data(self):
         highlight_id = "34d3f5d1-3b9d-5cbb-b8ae-af9457be9544"
-        highlight_url = (
-            "https://www.snapchat.com/@mashedscc4/highlight/" + highlight_id
-        )
+        highlight_url = "https://www.snapchat.com/@mashedscc4/highlight/" + highlight_id
         self.assertTrue(self.snapchat_dl._is_publisher_url(highlight_url))
         self.assertEqual(
             self.snapchat_dl._parse_publisher_url(highlight_url),
@@ -157,7 +164,9 @@ class TestSnapchat_dl(unittest.TestCase):
                                 "snapMediaType": 1,
                                 "timestampInSec": {"value": "1791387926"},
                                 "snapUrls": {
-                                    "mediaUrl": "https://cdn.example/{}.mp4".format(index)
+                                    "mediaUrl": "https://cdn.example/{}.mp4".format(
+                                        index
+                                    )
                                 },
                             }
                             for index in range(3)
@@ -175,6 +184,10 @@ class TestSnapchat_dl(unittest.TestCase):
         self.assertEqual(len(stories), 3)
         self.assertEqual(
             [story["snapId"]["value"] for story in stories],
-            ["{}_0".format(highlight_id), "{}_1".format(highlight_id), "{}_2".format(highlight_id)],
+            [
+                "{}_0".format(highlight_id),
+                "{}_1".format(highlight_id),
+                "{}_2".format(highlight_id),
+            ],
         )
         self.assertEqual(timestamp, "1791387926")

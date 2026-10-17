@@ -1,4 +1,5 @@
 """Commandline setup for snapchat_dl."""
+
 import sys
 import time
 

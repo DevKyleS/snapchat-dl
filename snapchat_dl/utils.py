@@ -1,4 +1,5 @@
 """Utility functions for snapchat_dl."""
+
 import json
 import os
 import re
@@ -6,7 +7,6 @@ from argparse import Namespace
 from datetime import datetime, timezone
 
 from loguru import logger
-
 
 MEDIA_TYPE = ["jpg", "mp4"]
 
@@ -69,7 +69,7 @@ def search_usernames(string: str) -> list:
         list: usernames and publisher URLs found in string
     """
     results = []
-    
+
     # Find regular usernames from story URLs
     usernames = [
         username
@@ -80,14 +80,14 @@ def search_usernames(string: str) -> list:
         if valid_username(username)
     ]
     results.extend(usernames)
-    
+
     # Find publisher URLs
     publisher_urls = re.findall(
         r"https://story\.snapchat\.com/p/[a-f0-9\-]+/[0-9]+",
         string,
     )
     results.extend(publisher_urls)
-    
+
     return list(sorted(set(results)))
 
 
@@ -114,7 +114,10 @@ def use_batch_file(args: Namespace) -> list:
             for u in f.read().split("\n"):
                 username = u.strip()
                 # Check if it's a valid username or a publisher URL
-                if (valid_username(username) or username.startswith("https://story.snapchat.com/p/")) and username not in usernames:
+                if (
+                    valid_username(username)
+                    or username.startswith("https://story.snapchat.com/p/")
+                ) and username not in usernames:
                     usernames.append(username)
 
     return usernames

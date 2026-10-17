@@ -70,3 +70,65 @@ class TestSnapchat_dl(unittest.TestCase):
         api_response.return_value = self.html_nostories
         with self.assertRaises(NoStoriesFound):
             self.snapchat_dl.download(self.username)
+
+    def test_extract_publisher_requested_story(self):
+        response_json = {
+            "props": {
+                "pageProps": {
+                    "publicProfileInfo": {"title": "Publisher"},
+                    "preselectedStory": {
+                        "premiumStory": {
+                            "playerStory": {
+                                "storyId": {"value": "other-story"},
+                                "snapList": [
+                                    {"snapUrls": {"mediaUrl": "https://example.com/wrong.m3u8"}}
+                                ],
+                            },
+                            "timestampInSec": {"value": "100"},
+                        }
+                    },
+                    "premiumStoryList": [
+                        {
+                            "playerStory": {
+                                "storyId": {"value": "requested-story"},
+                                "videoTrackUrl": {"value": "https://example.com/right.m3u8"},
+                                "storyTitle": {"value": "Requested"},
+                            },
+                            "timestampInSec": {"value": "200"},
+                        }
+                    ],
+                }
+            }
+        }
+
+        stories, publisher, _, _, timestamp = self.snapchat_dl._extract_publisher_data(
+            response_json, "requested-story"
+        )
+
+        self.assertEqual(publisher["title"], "Publisher")
+        self.assertEqual(stories[0]["snapUrls"]["mediaUrl"], "https://example.com/right.m3u8")
+        self.assertEqual(stories[0]["snapId"]["value"], "requested-story")
+        self.assertEqual(timestamp, "200")
+
+    def test_extract_publisher_missing_story(self):
+        response_json = {
+            "props": {
+                "pageProps": {
+                    "publicProfileInfo": {"title": "Publisher"},
+                    "premiumStoryList": [
+                        {
+                            "playerStory": {
+                                "storyId": {"value": "another-story"},
+                                "videoTrackUrl": {"value": "https://example.com/other.m3u8"},
+                            }
+                        }
+                    ],
+                }
+            }
+        }
+
+        stories, _, _, _, _ = self.snapchat_dl._extract_publisher_data(
+            response_json, "missing-story"
+        )
+
+        self.assertEqual(stories, [])

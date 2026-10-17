@@ -57,20 +57,29 @@ def download_url(url: str, dest: str, sleep_interval: int):
 def download_m3u8_segments(url: str, dest_dir: str, sleep_interval: int):
     """Download M3U8 playlist and all its video segments.
 
+    This function serves as a fallback when direct FFmpeg download fails.
+    Handles both master playlists and individual stream playlists.
+
     Args:
         url (str): M3U8 playlist URL
         dest_dir (str): directory to save segments
         sleep_interval (int): sleep between downloads
 
     Returns:
-        list: paths to downloaded segment files
+        list or dict: paths to downloaded segment files, or dict with video/audio keys
     """
     if not os.path.exists(dest_dir):
         os.makedirs(dest_dir, exist_ok=True)
 
     # Download the M3U8 playlist first
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(
+            url,
+            timeout=30,
+            headers={
+                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+            }
+        )
         response.raise_for_status()
         playlist_content = response.text
     except requests.exceptions.RequestException as e:
@@ -119,14 +128,14 @@ def download_m3u8_segments(url: str, dest_dir: str, sleep_interval: int):
                 
                 # Check next line for stream URL
                 if i + 1 < len(lines):
-                    stream_line = lines[i + 1].strip()
-                    if stream_line and not stream_line.startswith("#"):
-                        if bandwidth > best_bandwidth:
+                    stream_url = lines[i + 1].strip()
+                    if stream_url and not stream_url.startswith("#"):
+                        if not stream_url.startswith("http"):
+                            stream_url = urllib.parse.urljoin(base_url, stream_url)
+
+                        if bandwidth >= best_bandwidth:
                             best_bandwidth = bandwidth
-                            if stream_line.startswith("http"):
-                                best_stream_url = stream_line
-                            else:
-                                best_stream_url = urllib.parse.urljoin(base_url, stream_line)
+                            best_stream_url = stream_url
         
         if best_stream_url:
             logger.info(f"Selected video stream with bandwidth {best_bandwidth}: {best_stream_url}")
@@ -142,10 +151,12 @@ def download_m3u8_segments(url: str, dest_dir: str, sleep_interval: int):
                 audio_segments = download_m3u8_segments(audio_stream_url, audio_dest_dir, sleep_interval)
             
             # Return both video and audio segments for merging
-            all_segments = {"video": video_segments, "audio": audio_segments}
-            return all_segments
+            if audio_segments:
+                return {"video": video_segments, "audio": audio_segments}
+            else:
+                return video_segments
         else:
-            logger.error("No video streams found in master playlist")
+            logger.error("No video stream found in master playlist")
             return []
     
     # This is a media playlist, process segments normally
@@ -333,20 +344,21 @@ def _combine_video_audio_segments(video_files: list, audio_files: list, output_p
                 
                 logger.info(f"Merging video and audio: {' '.join(cmd)}")
                 result = subprocess.run(cmd, capture_output=True, text=True)
-                
-                # Clean up temp files
-                try:
-                    os.unlink(video_temp_path)
-                    os.unlink(audio_temp_path)
-                except OSError:
-                    pass
-                
+
                 if result.returncode == 0:
+                    for temp_path in (video_temp_path, audio_temp_path):
+                        try:
+                            os.unlink(temp_path)
+                        except OSError:
+                            pass
                     logger.info(f"Successfully merged video and audio into: {output_path}")
                     return True
                 else:
                     logger.error(f"Audio/video merge failed: {result.stderr}")
-                    # Fall back to video-only
+                    try:
+                        os.unlink(audio_temp_path)
+                    except OSError:
+                        pass
                     shutil.move(video_temp_path, output_path)
                     return True
             else:
@@ -559,3 +571,67 @@ def _download_byterange_segment(url: str, dest_path: str, byterange: tuple, slee
     except requests.exceptions.RequestException as e:
         logger.error(f"Failed to download byte-range segment from {url}: {e}")
         raise
+
+
+def download_m3u8_direct_ffmpeg(m3u8_url: str, output_path: str) -> bool:
+    """Download M3U8 directly using FFmpeg without processing individual segments.
+
+    This is the optimal approach for downloading HLS streams as FFmpeg handles
+    the entire M3U8 protocol natively with better error recovery and performance.
+
+    Args:
+        m3u8_url (str): M3U8 playlist URL
+        output_path (str): final output file path
+
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        # Verify FFmpeg availability
+        subprocess.run(["ffmpeg", "-version"], capture_output=True, check=True, timeout=10)
+    except (subprocess.CalledProcessError, FileNotFoundError, subprocess.TimeoutExpired):
+        logger.warning("FFmpeg not available for direct M3U8 download")
+        return False
+
+    try:
+        # Ensure output directory exists
+        os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
+
+        # FFmpeg command with protocol whitelist for security
+        cmd = [
+            "ffmpeg", "-y",  # Overwrite output files
+            "-protocol_whitelist", "file,http,https,tcp,tls,crypto",
+            "-user_agent", "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+            "-i", m3u8_url,
+            "-c", "copy",  # Copy streams without re-encoding for speed
+            "-bsf:a", "aac_adtstoasc",  # Fix AAC stream compatibility if present
+            "-f", "mp4",  # Force MP4 container format
+            output_path
+        ]
+
+        logger.info(f"Downloading M3U8 directly with FFmpeg: {m3u8_url}")
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=600  # 10 minute timeout for large files
+        )
+
+        if result.returncode == 0:
+            # Verify output file was created and has content
+            if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                logger.info(f"Successfully downloaded M3U8 to: {output_path}")
+                return True
+            else:
+                logger.warning("FFmpeg completed but output file is empty or missing")
+                return False
+        else:
+            logger.warning(f"FFmpeg direct download failed: {result.stderr}")
+            return False
+
+    except subprocess.TimeoutExpired:
+        logger.error("FFmpeg download timed out after 10 minutes")
+        return False
+    except Exception as e:
+        logger.warning(f"Failed to download M3U8 directly: {e}")
+        return False

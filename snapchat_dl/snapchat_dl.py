@@ -8,7 +8,7 @@ import re
 import requests
 from loguru import logger
 
-from snapchat_dl.downloader import download_url, download_m3u8_segments, combine_segments_with_ffmpeg
+from snapchat_dl.downloader import download_url, download_m3u8_segments, combine_segments_with_ffmpeg, download_m3u8_direct_ffmpeg
 from snapchat_dl.utils import APIResponseError
 from snapchat_dl.utils import dump_response
 from snapchat_dl.utils import MEDIA_TYPE
@@ -36,22 +36,33 @@ class SnapchatDL:
         self.quiet = quiet
         self.dump_json = dump_json
         self.endpoint_web = "https://www.snapchat.com/add/{}/"
+        self.endpoint_publisher = "https://story.snapchat.com/p/{}/{}"
         self.regexp_web_json = (
             r'<script\s*id="__NEXT_DATA__"\s*type="application\/json">([^<]+)<\/script>'
         )
         self.reaponse_ok = requests.codes.get("ok")
 
-    def _api_response(self, username):
-        web_url = self.endpoint_web.format(username)
-        return requests.get(
-            web_url,
-            headers={
-                "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
-            },
-        ).text
+    def _is_publisher_url(self, url_or_username):
+        """Check if the input is a publisher URL."""
         return url_or_username.startswith("https://story.snapchat.com/p/")
 
-    def _web_fetch_story(self, username):
+    def _parse_publisher_url(self, publisher_url):
+        """Extract publisher_id and story_id from publisher URL."""
+        # Expected format: https://story.snapchat.com/p/{publisher_id}/{story_id}
+        parts = publisher_url.replace("https://story.snapchat.com/p/", "").split("/")
+        if len(parts) >= 2:
+            return parts[0], parts[1]
+        raise ValueError("Invalid publisher URL format")
+
+    def _api_response(self, username_or_url):
+        if self._is_publisher_url(username_or_url):
+            return requests.get(
+                username_or_url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+                },
+            ).text
+        else:
             web_url = self.endpoint_web.format(username_or_url)
             return requests.get(
                 web_url,
@@ -128,28 +139,22 @@ class SnapchatDL:
                 if "playerStory" in premium_story:
                     player_story = premium_story["playerStory"]
                     story_timestamp = premium_story.get("timestampInSec", {}).get("value", "0")
-                    
-                    # Check if there's a videoTrackUrl (HLS manifest) for the full story
-                    if "videoTrackUrl" in player_story and player_story["videoTrackUrl"].get("value"):
-                        # Create a single "snap" entry for the full video
-                        video_url = player_story["videoTrackUrl"]["value"]
-                        story_title = player_story.get("storyTitle", {}).get("value", "story")
-                        story_id_value = player_story.get("storyId", {}).get("value", story_timestamp)
-                        
-                        full_video_snap = {
-                            "snapIndex": 0,
-                            "snapId": {"value": story_id_value},
-                            "snapMediaType": 1,  # Video
-                            "snapUrls": {"mediaUrl": video_url},
-                            "storyTitle": story_title
-                        }
-                        return [full_video_snap], story_timestamp
-                    
-                    # If no videoTrackUrl, fall back to individual snaps with valid URLs
-                    snap_list = player_story.get("snapList", [])
-                    valid_snaps = [snap for snap in snap_list if snap.get("snapUrls", {}).get("mediaUrl")]
-                    if valid_snaps:
-                        return valid_snaps, story_timestamp
+                    if player_story.get("storyId", {}).get("value") == story_id:
+                        video_track = player_story.get("videoTrackUrl", {}).get("value")
+                        if video_track:
+                            full_video_snap = {
+                                "snapIndex": 0,
+                                "snapId": {"value": story_id},
+                                "snapMediaType": 1,
+                                "snapUrls": {"mediaUrl": video_track},
+                                "storyTitle": player_story.get("storyTitle", {}).get("value", "story"),
+                            }
+                            return [full_video_snap], story_timestamp
+
+                        snap_list = player_story.get("snapList", [])
+                        valid_snaps = [snap for snap in snap_list if snap.get("snapUrls", {}).get("mediaUrl")]
+                        if valid_snaps:
+                            return valid_snaps, story_timestamp
                         
             # Then check premiumStoryList for specific story ID
             if "premiumStoryList" in page_props:
@@ -180,35 +185,6 @@ class SnapchatDL:
                             valid_snaps = [snap for snap in snap_list if snap.get("snapUrls", {}).get("mediaUrl")]
                             if valid_snaps:
                                 return valid_snaps, story_timestamp
-                            
-            # Fallback: find any story with snaps
-            if "premiumStoryList" in page_props:
-                premium_stories = page_props["premiumStoryList"]
-                for story in premium_stories:
-                    if "playerStory" in story:
-                        player_story = story["playerStory"]
-                        story_timestamp = story.get("timestampInSec", {}).get("value", "0")
-                        
-                        # Check for videoTrackUrl first
-                        if "videoTrackUrl" in player_story and player_story["videoTrackUrl"].get("value"):
-                            video_url = player_story["videoTrackUrl"]["value"]
-                            story_title = player_story.get("storyTitle", {}).get("value", "story")
-                            story_id_value = player_story.get("storyId", {}).get("value", story_timestamp)
-                            
-                            full_video_snap = {
-                                "snapIndex": 0,
-                                "snapId": {"value": story_id_value},
-                                "snapMediaType": 1,
-                                "snapUrls": {"mediaUrl": video_url},
-                                "storyTitle": story_title
-                            }
-                            return [full_video_snap], story_timestamp
-                        
-                        # Fall back to valid individual snaps
-                        snap_list = player_story.get("snapList", [])
-                        valid_snaps = [snap for snap in snap_list if snap.get("snapUrls", {}).get("mediaUrl")]
-                        if valid_snaps:
-                            return valid_snaps, story_timestamp
                             
             return list(), "0"
 
@@ -316,21 +292,43 @@ class SnapchatDL:
         logger.info("[✔] {} stories downloaded".format(display_name, len(stories)))
 
     def _download_m3u8_story(self, media_url: str, segments_dir: str, output_path: str, sleep_interval: int):
-        """Download M3U8 story with all segments.
+        """Download M3U8 story using optimized approach.
+
+        Attempts direct FFmpeg download first (fastest), falls back to
+        segment-by-segment processing if needed.
 
         Args:
             media_url (str): M3U8 playlist URL
-            segments_dir (str): directory to save segments
+            segments_dir (str): directory to save segments (fallback only)
             output_path (str): final output file path
             sleep_interval (int): sleep between downloads
         """
         try:
-            # Download all video segments (and audio if it's a master playlist)
+            # Primary approach: Direct FFmpeg download (most optimal)
+            video_output = output_path.replace('.m3u8', '.mp4')
+
+            if not self.quiet:
+                logger.info("Attempting optimized direct M3U8 download...")
+
+            if download_m3u8_direct_ffmpeg(media_url, video_output):
+                logger.info(f"Video downloaded successfully via direct FFmpeg: {video_output}")
+                if not self.quiet:
+                    logger.info("Direct download completed - no segment processing needed")
+
+                # Also save the original M3U8 file for reference
+                try:
+                    download_url(media_url, output_path, 0)
+                except Exception as e:
+                    logger.warning(f"Could not save M3U8 file: {e}")
+                return
+
+            # Fallback: Manual segment processing (existing implementation)
+            if not self.quiet:
+                logger.info("Direct download failed, using segment-based fallback...")
+
             segment_files = download_m3u8_segments(media_url, segments_dir, sleep_interval)
             
             if segment_files:
-                # Try to combine segments into a single video file
-                video_output = output_path.replace('.m3u8', '.mp4')
                 success = combine_segments_with_ffmpeg(segment_files, video_output)
                 
                 if success:

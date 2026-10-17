@@ -5,6 +5,9 @@ on: [push]
 jobs:
     build:
         runs-on: ubuntu-latest
+        permissions:
+            contents: read
+            id-token: write
         strategy:
             matrix:
                 python-version: ["3.11", "3.15"]
@@ -32,3 +35,7 @@ jobs:
                   pytest tests --cov=./ --cov-report=xml
             - name: Upload coverage to Codecov
               uses: codecov/codecov-action@v7
+              with:
+                  files: ./coverage.xml
+                  use_oidc: true
+                  fail_ci_if_error: true

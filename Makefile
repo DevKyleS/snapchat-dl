@@ -77,8 +77,8 @@ docs: docs-usage## generate Sphinx HTML documentation, including API docs
 	$(MAKE) -C docs html
 	@printf "HTML documentation built at docs/_build/html/index.html\n"
 
-servedocs: docs ## compile the docs watching for changes
-	watchmedo shell-command -p '*.rst' -c '$(MAKE) -C docs html' -R -D .
+servedocs: docs ## serve the docs and rebuild on changes
+	sphinx-autobuild docs docs/_build/html --host 0.0.0.0 --port 8000
 
 dist: clean ## builds source and wheel package
 	python setup.py sdist

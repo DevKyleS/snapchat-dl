@@ -82,6 +82,18 @@ environment where it was installed before installing this one. For example,
 use `pipx uninstall snapchat-dl` if it was installed with `pipx`, or activate
 its virtual environment and run `python -m pip uninstall snapchat-dl` there.
 
+### Privacy
+
+The downloader does not collect usage analytics or send application telemetry.
+It makes network requests to retrieve the public stories and media requested by
+the user. The provided devcontainer disables VS Code telemetry. For local VS
+Code sessions outside the devcontainer, set the user setting
+`telemetry.telemetryLevel` to `off`; extensions may have their own telemetry
+settings.
+
+GitHub Actions explicitly uploads CI coverage reports to Codecov. This is
+project coverage data, not runtime telemetry.
+
 ### Usage
 
 Quote publisher URLs that contain query parameters so the shell passes the full

@@ -7,6 +7,9 @@
 	"postCreateCommand": "python -m pip install -e \".[test]\" -r requirements_dev.txt",
 	"customizations": {
 		"vscode": {
+			"settings": {
+				"telemetry.telemetryLevel": "off"
+			},
 			"extensions": [
 				"ms-python.python",
 				"ms-python.vscode-pylance",

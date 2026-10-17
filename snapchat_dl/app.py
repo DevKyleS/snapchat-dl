@@ -10,6 +10,7 @@ from snapchat_dl.cli import parse_arguments
 from snapchat_dl.snapchat_dl import SnapchatDL
 from snapchat_dl.utils import NoStoriesFound
 from snapchat_dl.utils import search_usernames
+from snapchat_dl.utils import search_publisher_urls
 from snapchat_dl.utils import use_batch_file
 from snapchat_dl.utils import use_prefix_dir
 from snapchat_dl.utils import UserNotFoundError
@@ -62,7 +63,10 @@ def main():
                 logger.info("Listening for clipboard change")
 
             while True:
-                usernames_clip = search_usernames(pyperclip.paste())
+                clipboard_text = pyperclip.paste()
+                usernames_clip = search_usernames(clipboard_text) + search_publisher_urls(
+                    clipboard_text
+                )
                 if len(usernames_clip) > 0:
                     download_users(usernames_clip, respect_history=True)
 

@@ -53,9 +53,19 @@ class SnapchatDL:
         parsed_url = urlparse(url_or_username)
         path_parts = [part for part in parsed_url.path.split("/") if part]
         is_publisher_story = (
-            parsed_url.netloc == "story.snapchat.com"
-            and len(path_parts) >= 3
+            parsed_url.netloc in {
+                "story.snapchat.com",
+                "www.snapchat.com",
+                "snapchat.com",
+            }
+            and len(path_parts) in {2, 3}
             and path_parts[0] == "p"
+        )
+        is_publisher_spotlight = (
+            parsed_url.netloc in {"www.snapchat.com", "snapchat.com"}
+            and len(path_parts) == 4
+            and path_parts[0] == "p"
+            and path_parts[2] == "spotlight"
         )
         is_publisher_highlight = (
             parsed_url.netloc in {"www.snapchat.com", "snapchat.com"}
@@ -63,18 +73,23 @@ class SnapchatDL:
             and path_parts[0].startswith("@")
             and path_parts[1] == "highlight"
         )
-        return is_publisher_story or is_publisher_highlight
+        return (
+            is_publisher_story
+            or is_publisher_spotlight
+            or is_publisher_highlight
+        )
 
     def _parse_publisher_url(self, publisher_url):
         """Extract publisher and story identifiers from a supported URL."""
         parsed_url = urlparse(publisher_url)
         parts = [part for part in parsed_url.path.split("/") if part]
         if (
-            parsed_url.netloc == "story.snapchat.com"
-            and len(parts) >= 3
+            parsed_url.netloc
+            in {"story.snapchat.com", "www.snapchat.com", "snapchat.com"}
+            and len(parts) in {2, 3}
             and parts[0] == "p"
         ):
-            return parts[1], parts[2]
+            return parts[1], parts[2] if len(parts) == 3 else None
         if (
             parsed_url.netloc in {"www.snapchat.com", "snapchat.com"}
             and len(parts) >= 3
@@ -82,6 +97,13 @@ class SnapchatDL:
             and parts[1] == "highlight"
         ):
             return parts[0][1:], parts[2]
+        if (
+            parsed_url.netloc in {"www.snapchat.com", "snapchat.com"}
+            and len(parts) == 4
+            and parts[0] == "p"
+            and parts[2] == "spotlight"
+        ):
+            return parts[1], parts[3]
         raise ValueError("Invalid publisher URL format")
 
     def _api_response(self, username_or_url):
@@ -157,6 +179,37 @@ class SnapchatDL:
 
     def _extract_publisher_data(self, response_json, story_id):
         """Extract data for publisher profiles."""
+        page_props = response_json["props"]["pageProps"]
+
+        # Spotlight pages use a separate feed schema from publisher stories.
+        spotlight_feed = page_props.get("spotlightFeed") or {}
+        for item in spotlight_feed.get("spotlightStories", []):
+            spotlight_story = item.get("story") or {}
+            if (spotlight_story.get("storyId") or {}).get("value") != story_id:
+                continue
+
+            snaps = [
+                snap
+                for snap in spotlight_story.get("snapList", [])
+                if snap.get("snapUrls", {}).get("mediaUrl")
+            ]
+            metadata = item.get("metadata") or {}
+            video_metadata = metadata.get("videoMetadata") or {}
+            creator = video_metadata.get("creator") or {}
+            creator_info = creator.get("personCreator") or {}
+            publisher_info = {
+                "title": creator_info.get("name") or "Unknown Publisher"
+            }
+
+            timestamp = "0"
+            if snaps:
+                timestamp = (
+                    (snaps[0].get("timestampInSec") or {}).get("value") or timestamp
+                )
+            if timestamp == "0" and video_metadata.get("uploadDateMs"):
+                timestamp = str(int(video_metadata["uploadDateMs"]) // 1000)
+
+            return snaps, publisher_info, [], [], str(timestamp)
 
         def util_publisher_info(content: dict):
             page_props = content["props"]["pageProps"]
@@ -197,18 +250,23 @@ class SnapchatDL:
                 premium_story = page_props["preselectedStory"]["premiumStory"]
                 if "playerStory" in premium_story:
                     player_story = premium_story["playerStory"]
-                    story_timestamp = premium_story.get("timestampInSec", {}).get(
-                        "value", "0"
+                    story_timestamp = (
+                        premium_story.get("timestampInSec") or {}
+                    ).get("value", "0")
+                    selected_story_id = (player_story.get("storyId") or {}).get(
+                        "value"
                     )
-                    if player_story.get("storyId", {}).get("value") == story_id:
-                        video_track = player_story.get("videoTrackUrl", {}).get("value")
+                    if story_id is None or selected_story_id == story_id:
+                        video_track = (player_story.get("videoTrackUrl") or {}).get(
+                            "value"
+                        )
                         if video_track:
                             full_video_snap = {
                                 "snapIndex": 0,
                                 "snapId": {"value": story_id},
                                 "snapMediaType": 1,
                                 "snapUrls": {"mediaUrl": video_track},
-                                "storyTitle": player_story.get("storyTitle", {}).get(
+                                "storyTitle": (player_story.get("storyTitle") or {}).get(
                                     "value", "story"
                                 ),
                             }
@@ -229,20 +287,24 @@ class SnapchatDL:
                 for story in premium_stories:
                     if "playerStory" in story:
                         player_story = story["playerStory"]
-                        if player_story.get("storyId", {}).get("value") == story_id:
-                            story_timestamp = story.get("timestampInSec", {}).get(
-                                "value", "0"
-                            )
+                        if (
+                            story_id is not None
+                            and (player_story.get("storyId") or {}).get("value")
+                            == story_id
+                        ):
+                            story_timestamp = (
+                                story.get("timestampInSec") or {}
+                            ).get("value", "0")
 
                             # Check for videoTrackUrl first
-                            if "videoTrackUrl" in player_story and player_story[
-                                "videoTrackUrl"
-                            ].get("value"):
-                                video_url = player_story["videoTrackUrl"]["value"]
-                                story_title = player_story.get("storyTitle", {}).get(
+                            video_url = (player_story.get("videoTrackUrl") or {}).get(
+                                "value"
+                            )
+                            if video_url:
+                                story_title = (player_story.get("storyTitle") or {}).get(
                                     "value", "story"
                                 )
-                                story_id_value = player_story.get("storyId", {}).get(
+                                story_id_value = (player_story.get("storyId") or {}).get(
                                     "value", story_timestamp
                                 )
 
@@ -272,15 +334,16 @@ class SnapchatDL:
 
         return stories, publisher_info, [], [], story_timestamp
 
-    def download(self, username_or_url):
+    def download(self, username):
         """Download Snapchat Story for `username` or publisher URL.
 
         Args:
-            username_or_url (str): Snapchat `username` or publisher URL
+            username (str): Snapchat username or publisher URL
 
         Returns:
             [bool]: story downloader
         """
+        username_or_url = username
         result = self._web_fetch_story(username_or_url)
 
         # Handle different return formats (user stories vs publisher stories)

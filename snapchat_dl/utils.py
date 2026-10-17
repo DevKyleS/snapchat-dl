@@ -60,35 +60,37 @@ def valid_username(username):
 
 
 def search_usernames(string: str) -> list:
-    """Return list of usernames and publisher URLs found in a string.
+    """Return list of usernames found in a string.
 
     Args:
-        string (str): string to search for usernames and publisher URLs
+        string (str): string to search for usernames
 
     Returns:
-        list: usernames and publisher URLs found in string
+        list: usernames found in string
     """
-    results = []
-
-    # Find regular usernames from story URLs
-    usernames = [
-        username
-        for username in re.findall(
-            r"https?://(?:story|www).snapchat.com/(?:[suad]+/|@)([\-\w\.\_]{3,15})",
-            string,
+    return list(
+        sorted(
+            set(
+                username
+                for username in re.findall(
+                    r"https?://(?:story|www).snapchat.com/(?:[suad]+/|@)([\-\w\.\_]{3,15})",
+                    string,
+                )
+                if valid_username(username)
+            )
         )
-        if valid_username(username)
-    ]
-    results.extend(usernames)
+    )
 
-    # Find publisher URLs
+
+def search_publisher_urls(string: str) -> list:
+    """Return publisher story and highlight URLs found in a string."""
     publisher_urls = re.findall(
-        r"https://story\.snapchat\.com/p/[a-f0-9\-]+/[0-9]+",
+        r"https://(?:story\.snapchat\.com|(?:www\.)?snapchat\.com)/p/"
+        r"[a-f0-9-]+(?:/[0-9]+|/spotlight/[A-Za-z0-9_-]+)?"
+        r"|https://(?:www\.)?snapchat\.com/@[\w.-]+/highlight/[a-f0-9-]+",
         string,
     )
-    results.extend(publisher_urls)
-
-    return list(sorted(set(results)))
+    return list(sorted(set(publisher_urls)))
 
 
 def use_batch_file(args: Namespace) -> list:

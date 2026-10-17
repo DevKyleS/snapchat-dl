@@ -64,9 +64,9 @@ def main():
 
             while True:
                 clipboard_text = pyperclip.paste()
-                usernames_clip = search_usernames(clipboard_text) + search_publisher_urls(
+                usernames_clip = search_usernames(
                     clipboard_text
-                )
+                ) + search_publisher_urls(clipboard_text)
                 if len(usernames_clip) > 0:
                     download_users(usernames_clip, respect_history=True)
 

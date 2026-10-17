@@ -53,7 +53,8 @@ class SnapchatDL:
         parsed_url = urlparse(url_or_username)
         path_parts = [part for part in parsed_url.path.split("/") if part]
         is_publisher_story = (
-            parsed_url.netloc in {
+            parsed_url.netloc
+            in {
                 "story.snapchat.com",
                 "www.snapchat.com",
                 "snapchat.com",
@@ -73,11 +74,7 @@ class SnapchatDL:
             and path_parts[0].startswith("@")
             and path_parts[1] == "highlight"
         )
-        return (
-            is_publisher_story
-            or is_publisher_spotlight
-            or is_publisher_highlight
-        )
+        return is_publisher_story or is_publisher_spotlight or is_publisher_highlight
 
     def _parse_publisher_url(self, publisher_url):
         """Extract publisher and story identifiers from a supported URL."""
@@ -197,15 +194,13 @@ class SnapchatDL:
             video_metadata = metadata.get("videoMetadata") or {}
             creator = video_metadata.get("creator") or {}
             creator_info = creator.get("personCreator") or {}
-            publisher_info = {
-                "title": creator_info.get("name") or "Unknown Publisher"
-            }
+            publisher_info = {"title": creator_info.get("name") or "Unknown Publisher"}
 
             timestamp = "0"
             if snaps:
-                timestamp = (
-                    (snaps[0].get("timestampInSec") or {}).get("value") or timestamp
-                )
+                timestamp = (snaps[0].get("timestampInSec") or {}).get(
+                    "value"
+                ) or timestamp
             if timestamp == "0" and video_metadata.get("uploadDateMs"):
                 timestamp = str(int(video_metadata["uploadDateMs"]) // 1000)
 
@@ -250,12 +245,10 @@ class SnapchatDL:
                 premium_story = page_props["preselectedStory"]["premiumStory"]
                 if "playerStory" in premium_story:
                     player_story = premium_story["playerStory"]
-                    story_timestamp = (
-                        premium_story.get("timestampInSec") or {}
-                    ).get("value", "0")
-                    selected_story_id = (player_story.get("storyId") or {}).get(
-                        "value"
+                    story_timestamp = (premium_story.get("timestampInSec") or {}).get(
+                        "value", "0"
                     )
+                    selected_story_id = (player_story.get("storyId") or {}).get("value")
                     if story_id is None or selected_story_id == story_id:
                         video_track = (player_story.get("videoTrackUrl") or {}).get(
                             "value"
@@ -266,9 +259,9 @@ class SnapchatDL:
                                 "snapId": {"value": story_id},
                                 "snapMediaType": 1,
                                 "snapUrls": {"mediaUrl": video_track},
-                                "storyTitle": (player_story.get("storyTitle") or {}).get(
-                                    "value", "story"
-                                ),
+                                "storyTitle": (
+                                    player_story.get("storyTitle") or {}
+                                ).get("value", "story"),
                             }
                             return [full_video_snap], story_timestamp
 
@@ -292,21 +285,21 @@ class SnapchatDL:
                             and (player_story.get("storyId") or {}).get("value")
                             == story_id
                         ):
-                            story_timestamp = (
-                                story.get("timestampInSec") or {}
-                            ).get("value", "0")
+                            story_timestamp = (story.get("timestampInSec") or {}).get(
+                                "value", "0"
+                            )
 
                             # Check for videoTrackUrl first
                             video_url = (player_story.get("videoTrackUrl") or {}).get(
                                 "value"
                             )
                             if video_url:
-                                story_title = (player_story.get("storyTitle") or {}).get(
-                                    "value", "story"
-                                )
-                                story_id_value = (player_story.get("storyId") or {}).get(
-                                    "value", story_timestamp
-                                )
+                                story_title = (
+                                    player_story.get("storyTitle") or {}
+                                ).get("value", "story")
+                                story_id_value = (
+                                    player_story.get("storyId") or {}
+                                ).get("value", story_timestamp)
 
                                 full_video_snap = {
                                     "snapIndex": 0,

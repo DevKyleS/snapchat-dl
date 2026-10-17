@@ -1,4 +1,4 @@
-.PHONY: clean clean-test clean-pyc clean-build docs help
+.PHONY: clean clean-test clean-pyc clean-build docs help test-integration
 .DEFAULT_GOAL := help
 
 define BROWSER_PYSCRIPT
@@ -56,6 +56,9 @@ test: clean-test ## run tests quickly with the default Python
 
 test-all: clean-test ## run tests on every Python version with tox
 	pytest tests --cache-clear
+
+test-integration: ## run optional live Snapchat integration tests
+	PYTHONPATH=. python -m pytest integration_tests -s --cache-clear
 
 coverage: clean-test ## check code coverage quickly with the default Python
 	coverage run -m pytest -v tests

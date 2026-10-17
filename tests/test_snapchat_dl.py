@@ -28,8 +28,8 @@ class TestSnapchat_dl(unittest.TestCase):
             directory_prefix=".test-data",
             dump_json=True,
         )
-        self.test_url = "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4"
-        self.test_url404 = "https://google.com/error.html"
+        self.test_url = "https://example.invalid/video.mp4"
+        self.test_url404 = "https://example.invalid/not-found.mp4"
         self.username = "invalidusername"
         self.html = open(
             "tests/mock_data/invalidusername.html", "r", encoding="utf8"
@@ -65,7 +65,8 @@ class TestSnapchat_dl(unittest.TestCase):
             self.snapchat_dl.download(self.username)
 
     @mock.patch("snapchat_dl.snapchat_dl.SnapchatDL._api_response")
-    def test_get_stories(self, api_response):
+    @mock.patch("snapchat_dl.snapchat_dl.download_url")
+    def test_get_stories(self, download_url, api_response):
         """Test snapchat_dl Download."""
         api_response.return_value = self.html
         self.snapchat_dl.download(self.username)
@@ -151,7 +152,9 @@ class TestSnapchat_dl(unittest.TestCase):
 
     def test_publisher_highlight_url_and_data(self):
         highlight_id = "00000000-0000-4000-8000-000000000001"
-        highlight_url = "https://www.snapchat.com/@testpublisher/highlight/" + highlight_id
+        highlight_url = (
+            "https://www.snapchat.com/@testpublisher/highlight/" + highlight_id
+        )
         self.assertTrue(self.snapchat_dl._is_publisher_url(highlight_url))
         self.assertEqual(
             self.snapchat_dl._parse_publisher_url(highlight_url),
@@ -203,9 +206,7 @@ class TestSnapchat_dl(unittest.TestCase):
         publisher_id = "8af53eee-e298-40c4-9d6e-af20cf881b61"
         story_id = "3137373287454720"
         publisher_url = "https://story.snapchat.com/p/" + publisher_id
-        story_url = "https://www.snapchat.com/p/{}/{}".format(
-            publisher_id, story_id
-        )
+        story_url = "https://www.snapchat.com/p/{}/{}".format(publisher_id, story_id)
 
         self.assertTrue(self.snapchat_dl._is_publisher_url(publisher_url))
         self.assertTrue(self.snapchat_dl._is_publisher_url(story_url))
@@ -226,7 +227,9 @@ class TestSnapchat_dl(unittest.TestCase):
                         "premiumStory": {
                             "playerStory": {
                                 "storyId": {"value": story_id},
-                                "storyTitle": {"value": "Turn it up with Chantel Jeffries"},
+                                "storyTitle": {
+                                    "value": "Turn it up with Chantel Jeffries"
+                                },
                                 "snapList": [
                                     {
                                         "snapIndex": 0,
@@ -255,9 +258,7 @@ class TestSnapchat_dl(unittest.TestCase):
 
     def test_official_team_snapchat_spotlight_url(self):
         publisher_id = "8af53eee-e298-40c4-9d6e-af20cf881b61"
-        spotlight_id = (
-            "W7_EDlXWTBiXAEEniNoMPwAAYcGxsYWxldmNtAaFLLqK9AaFLLqKQAAAAAQ"
-        )
+        spotlight_id = "W7_EDlXWTBiXAEEniNoMPwAAYcGxsYWxldmNtAaFLLqK9AaFLLqKQAAAAAQ"
         spotlight_url = "https://www.snapchat.com/p/{}/spotlight/{}".format(
             publisher_id, spotlight_id
         )
@@ -308,5 +309,7 @@ class TestSnapchat_dl(unittest.TestCase):
         )
 
         self.assertEqual(publisher["title"], "Team Snapchat")
-        self.assertEqual(stories[0]["snapUrls"]["mediaUrl"], "https://cdn.example/spotlight.mp4")
+        self.assertEqual(
+            stories[0]["snapUrls"]["mediaUrl"], "https://cdn.example/spotlight.mp4"
+        )
         self.assertEqual(timestamp, "1792262709")

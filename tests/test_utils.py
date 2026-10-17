@@ -71,7 +71,9 @@ class Test_utils(unittest.TestCase):
         )
 
     def test_search_usernames_ignores_official_publisher_url(self):
-        publisher_url = "https://story.snapchat.com/p/8af53eee-e298-40c4-9d6e-af20cf881b61"
+        publisher_url = (
+            "https://story.snapchat.com/p/8af53eee-e298-40c4-9d6e-af20cf881b61"
+        )
         self.assertEqual(search_usernames(publisher_url), [])
 
     def test_use_batch_file(self):

@@ -14,7 +14,7 @@ from snapchat_dl.utils import UserNotFoundError
 
 
 def teardown_module(module):
-    shutil.rmtree(".test-data")
+    shutil.rmtree(".test-data", ignore_errors=True)
 
 
 class TestSnapchat_dl(unittest.TestCase):
@@ -22,6 +22,7 @@ class TestSnapchat_dl(unittest.TestCase):
 
     def setUp(self):
         """Set up test fixtures."""
+        os.makedirs(".test-data", exist_ok=True)
         self.snapchat_dl = SnapchatDL(
             limit_story=10,
             quiet=True,
@@ -313,3 +314,67 @@ class TestSnapchat_dl(unittest.TestCase):
             stories[0]["snapUrls"]["mediaUrl"], "https://cdn.example/spotlight.mp4"
         )
         self.assertEqual(timestamp, "1792262709")
+
+    @mock.patch("snapchat_dl.snapchat_dl.download_url")
+    @mock.patch("snapchat_dl.snapchat_dl.download_m3u8_direct_ffmpeg")
+    def test_m3u8_story_saves_playlist_after_direct_download(self, direct, download):
+        direct.return_value = True
+        output_path = os.path.join(self.snapchat_dl.directory_prefix, "story.m3u8")
+
+        self.snapchat_dl._download_m3u8_story(
+            "https://cdn.example/story.m3u8",
+            os.path.join(self.snapchat_dl.directory_prefix, "segments"),
+            output_path,
+            0,
+        )
+
+        direct.assert_called_once_with(
+            "https://cdn.example/story.m3u8", output_path.replace(".m3u8", ".mp4")
+        )
+        download.assert_called_once_with(
+            "https://cdn.example/story.m3u8", output_path, 0
+        )
+
+    @mock.patch("snapchat_dl.snapchat_dl.download_url")
+    @mock.patch("snapchat_dl.snapchat_dl.combine_segments_with_ffmpeg")
+    @mock.patch("snapchat_dl.snapchat_dl.download_m3u8_segments")
+    @mock.patch("snapchat_dl.snapchat_dl.download_m3u8_direct_ffmpeg")
+    def test_m3u8_story_falls_back_to_segments(
+        self, direct, download_segments, combine, download_playlist
+    ):
+        direct.return_value = False
+        download_segments.return_value = ["segment.ts"]
+        combine.return_value = True
+        output_path = os.path.join(self.snapchat_dl.directory_prefix, "story.m3u8")
+        segments_dir = os.path.join(self.snapchat_dl.directory_prefix, "segments")
+
+        self.snapchat_dl._download_m3u8_story(
+            "https://cdn.example/story.m3u8", segments_dir, output_path, 0
+        )
+
+        download_segments.assert_called_once_with(
+            "https://cdn.example/story.m3u8", segments_dir, 0
+        )
+        combine.assert_called_once_with(
+            ["segment.ts"], output_path.replace(".m3u8", ".mp4")
+        )
+        download_playlist.assert_called_once_with(
+            "https://cdn.example/story.m3u8", output_path, 0
+        )
+
+    @mock.patch("snapchat_dl.snapchat_dl.download_m3u8_segments", return_value=[])
+    @mock.patch(
+        "snapchat_dl.snapchat_dl.download_m3u8_direct_ffmpeg", return_value=False
+    )
+    def test_m3u8_story_logs_when_fallback_has_no_segments(
+        self, direct, download_segments
+    ):
+        self.snapchat_dl._download_m3u8_story(
+            "https://cdn.example/story.m3u8",
+            os.path.join(self.snapchat_dl.directory_prefix, "segments"),
+            os.path.join(self.snapchat_dl.directory_prefix, "story.m3u8"),
+            0,
+        )
+
+        direct.assert_called_once()
+        download_segments.assert_called_once()

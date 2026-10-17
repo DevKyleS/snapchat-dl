@@ -46,7 +46,7 @@ source_suffix = ".rst"
 master_doc = "index"
 
 # General information about the project.
-project = "Snapchat Downloader"
+project = "Snapchat Downloader Community"
 copyright = "2020, Aakash Gajjar"
 author = "Aakash Gajjar"
 
@@ -127,7 +127,7 @@ latex_documents = [
     (
         master_doc,
         "snapchat_dl.tex",
-        "Snapchat Downloader Documentation",
+        "Snapchat Downloader Community Documentation",
         "Aakash Gajjar",
         "manual",
     ),

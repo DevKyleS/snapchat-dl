@@ -4,6 +4,7 @@ import concurrent.futures
 import json
 import os
 import re
+import shutil
 from urllib.parse import urlparse
 
 import requests
@@ -365,6 +366,16 @@ class SnapchatDL:
 
         if self.limit_story > -1:
             stories = stories[0 : self.limit_story]
+
+        has_m3u8_story = any(
+            ".m3u8" in media["snapUrls"]["mediaUrl"] for media in stories
+        )
+        if has_m3u8_story and shutil.which("ffmpeg") is None:
+            logger.warning(
+                "FFmpeg is not installed. HLS stories will be downloaded as segments "
+                "but cannot be combined into MP4 files. Install FFmpeg and rerun to "
+                "combine them."
+            )
 
         logger.info("[+] {} has {} stories".format(display_name, len(stories)))
 

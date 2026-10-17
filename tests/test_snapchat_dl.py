@@ -131,6 +131,35 @@ class TestSnapchat_dl(unittest.TestCase):
         api_response.return_value = self.html
         self.snapchat_dl.download(self.username)
 
+    def test_warns_before_queuing_m3u8_when_ffmpeg_is_missing(self):
+        story = {
+            "snapId": {"value": "snap-id"},
+            "snapUrls": {"mediaUrl": "https://cdn.example/story.m3u8"},
+            "snapMediaType": 1,
+            "timestampInSec": {"value": "1700000000"},
+        }
+        events = []
+        self.snapchat_dl.dump_json = False
+
+        with mock.patch.object(
+            self.snapchat_dl, "_web_fetch_story", return_value=([story], {}, [], [])
+        ):
+            with mock.patch("snapchat_dl.snapchat_dl.shutil.which", return_value=None):
+                with mock.patch(
+                    "snapchat_dl.snapchat_dl.logger.warning",
+                    side_effect=lambda *args: events.append("warning"),
+                ) as warning:
+                    with mock.patch(
+                        "snapchat_dl.snapchat_dl.concurrent.futures.ThreadPoolExecutor"
+                    ) as executor_class:
+                        executor_class.return_value.submit.side_effect = (
+                            lambda *args: events.append("submit")
+                        )
+                        self.snapchat_dl.download("testuser")
+
+        warning.assert_called_once()
+        self.assertEqual(events[:2], ["warning", "submit"])
+
     @mock.patch("snapchat_dl.snapchat_dl.SnapchatDL._api_response")
     def test_no_stories(self, api_response):
         """Test snapchat_dl Download."""

@@ -48,7 +48,7 @@ clean-test: ## remove test and coverage artifacts
 	rm -fr .pytest_cache
 	rm -fr .test-data
 
-lint: ## check style with flake8
+lint: ## format Python source and tests with Black
 	black snapchat_dl tests
 
 test: clean-test ## run tests quickly with the default Python

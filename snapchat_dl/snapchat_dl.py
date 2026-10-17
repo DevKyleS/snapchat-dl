@@ -480,6 +480,7 @@ class SnapchatDL:
                         segments_dir,
                         media_output,
                         self.sleep_interval,
+                        not self.quiet,
                     )
                 else:
                     # Regular file download
@@ -493,7 +494,12 @@ class SnapchatDL:
         logger.info("[✔] {} stories downloaded".format(display_name, len(stories)))
 
     def _download_m3u8_story(
-        self, media_url: str, segments_dir: str, output_path: str, sleep_interval: int
+        self,
+        media_url: str,
+        segments_dir: str,
+        output_path: str,
+        sleep_interval: int,
+        show_progress: bool | None = None,
     ):
         """Download M3U8 story using optimized approach.
 
@@ -506,6 +512,9 @@ class SnapchatDL:
             output_path (str): final output file path
             sleep_interval (int): sleep between downloads
         """
+        if show_progress is None:
+            show_progress = not self.quiet
+
         try:
             # Primary approach: Direct FFmpeg download (most optimal)
             video_output = output_path.replace(".m3u8", ".mp4")
@@ -534,7 +543,7 @@ class SnapchatDL:
                 logger.info("Direct download failed, using segment-based fallback...")
 
             segment_files = download_m3u8_segments(
-                media_url, segments_dir, sleep_interval
+                media_url, segments_dir, sleep_interval, show_progress
             )
 
             if segment_files:

@@ -1,6 +1,8 @@
 """File Downloader for snapchat_dl."""
 
 import os
+import sys
+import threading
 import time
 import urllib.parse
 import subprocess
@@ -9,6 +11,24 @@ import shutil
 
 import requests
 from loguru import logger
+from tqdm import tqdm
+
+_progress_position_lock = threading.Lock()
+_active_progress_positions = set()
+
+
+def _reserve_progress_position():
+    with _progress_position_lock:
+        position = 0
+        while position in _active_progress_positions:
+            position += 1
+        _active_progress_positions.add(position)
+        return position
+
+
+def _release_progress_position(position):
+    with _progress_position_lock:
+        _active_progress_positions.remove(position)
 
 
 def download_url(url: str, dest: str, sleep_interval: int):
@@ -55,7 +75,12 @@ def download_url(url: str, dest: str, sleep_interval: int):
         pass
 
 
-def download_m3u8_segments(url: str, dest_dir: str, sleep_interval: int):
+def download_m3u8_segments(
+    url: str,
+    dest_dir: str,
+    sleep_interval: int,
+    show_progress: bool = True,
+):
     """Download M3U8 playlist and all its video segments.
 
     This function serves as a fallback when direct FFmpeg download fails.
@@ -145,7 +170,7 @@ def download_m3u8_segments(url: str, dest_dir: str, sleep_interval: int):
 
             # Download video segments
             video_segments = download_m3u8_segments(
-                best_stream_url, dest_dir, sleep_interval
+                best_stream_url, dest_dir, sleep_interval, show_progress
             )
 
             # Download audio segments if audio stream exists
@@ -154,7 +179,7 @@ def download_m3u8_segments(url: str, dest_dir: str, sleep_interval: int):
                 audio_dest_dir = os.path.join(dest_dir, "audio")
                 logger.info(f"Downloading audio stream to: {audio_dest_dir}")
                 audio_segments = download_m3u8_segments(
-                    audio_stream_url, audio_dest_dir, sleep_interval
+                    audio_stream_url, audio_dest_dir, sleep_interval, show_progress
                 )
 
             # Return both video and audio segments for merging
@@ -202,40 +227,61 @@ def download_m3u8_segments(url: str, dest_dir: str, sleep_interval: int):
         f"Found {len(init_files)} initialization files and {len(segment_urls)} video segments to download"
     )
 
-    # Download initialization files first (needed for byte-range M3U8 playlists)
-    for init_filename, init_url in init_files:
-        init_path = os.path.join(dest_dir, init_filename)
-        try:
-            download_url(init_url, init_path, sleep_interval)
-            logger.info(f"Downloaded initialization file: {init_filename}")
-        except (requests.exceptions.RequestException, FileExistsError) as e:
-            if isinstance(e, FileExistsError):
-                logger.info(f"Initialization file already exists: {init_filename}")
-            else:
-                logger.error(
-                    f"Failed to download initialization file {init_filename}: {e}"
-                )
+    progress_visible = show_progress and sys.stderr.isatty()
+    progress_position = _reserve_progress_position() if progress_visible else 0
+    playlist_name = os.path.basename(urllib.parse.urlparse(url).path) or "HLS"
+    progress = tqdm(
+        total=len(init_files) + len(segment_urls),
+        desc=f"Downloading {playlist_name}",
+        unit="segment",
+        position=progress_position,
+        leave=False,
+        disable=not progress_visible,
+    )
+    try:
+        # Download initialization files first (needed for byte-range M3U8 playlists).
+        for init_filename, init_url in init_files:
+            init_path = os.path.join(dest_dir, init_filename)
+            try:
+                download_url(init_url, init_path, sleep_interval)
+                if not progress_visible and show_progress:
+                    logger.info(f"Downloaded initialization file: {init_filename}")
+            except (requests.exceptions.RequestException, FileExistsError) as e:
+                if isinstance(e, FileExistsError):
+                    logger.info(f"Initialization file already exists: {init_filename}")
+                else:
+                    logger.error(
+                        f"Failed to download initialization file {init_filename}: {e}"
+                    )
+            finally:
+                progress.update(1)
 
-    # Download each segment
-    for i, segment_url in enumerate(segment_urls):
-        segment_filename = f"segment_{i:04d}.ts"
-        segment_path = os.path.join(dest_dir, segment_filename)
+        # Download each segment.
+        for i, segment_url in enumerate(segment_urls):
+            segment_filename = f"segment_{i:04d}.ts"
+            segment_path = os.path.join(dest_dir, segment_filename)
 
-        try:
-            download_url(segment_url, segment_path, sleep_interval)
-            logger.info(
-                f"Downloaded segment {i+1}/{len(segment_urls)}: {segment_filename}"
-            )
-            segment_files.append(segment_path)
-        except (requests.exceptions.RequestException, FileExistsError) as e:
-            if isinstance(e, FileExistsError):
-                logger.info(
-                    f"Segment {i+1}/{len(segment_urls)} already exists: {segment_filename}"
-                )
+            try:
+                download_url(segment_url, segment_path, sleep_interval)
+                if not progress_visible and show_progress:
+                    logger.info(
+                        f"Downloaded segment {i+1}/{len(segment_urls)}: {segment_filename}"
+                    )
                 segment_files.append(segment_path)
-            else:
-                logger.error(f"Failed to download segment {i+1}: {e}")
-                continue
+            except (requests.exceptions.RequestException, FileExistsError) as e:
+                if isinstance(e, FileExistsError):
+                    logger.info(
+                        f"Segment {i+1}/{len(segment_urls)} already exists: {segment_filename}"
+                    )
+                    segment_files.append(segment_path)
+                else:
+                    logger.error(f"Failed to download segment {i+1}: {e}")
+            finally:
+                progress.update(1)
+    finally:
+        progress.close()
+        if progress_visible:
+            _release_progress_position(progress_position)
 
     return segment_files
 

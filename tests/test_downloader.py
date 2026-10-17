@@ -161,6 +161,25 @@ class Test_downloader(unittest.TestCase):
                 [],
             )
 
+    @mock.patch("snapchat_dl.downloader.tqdm")
+    @mock.patch("snapchat_dl.downloader.download_url")
+    @mock.patch("snapchat_dl.downloader.requests.get")
+    def test_m3u8_progress_tracks_init_and_segments(self, get, download, progress):
+        response = self._playlist_response(
+            '#EXTM3U\n#EXT-X-MAP:URI="init.mp4"\nsegment_1.ts\nsegment_2.ts\n'
+        )
+        get.return_value = response
+        with mock.patch("snapchat_dl.downloader.sys.stderr.isatty", return_value=True):
+            with tempfile.TemporaryDirectory() as temp_dir:
+                segments = download_m3u8_segments(
+                    "https://cdn.example/list.m3u8", temp_dir, 0
+                )
+
+        self.assertEqual(len(segments), 2)
+        self.assertEqual(progress.call_args.kwargs["total"], 3)
+        self.assertEqual(progress.return_value.update.call_count, 3)
+        progress.return_value.close.assert_called_once_with()
+
     @mock.patch("snapchat_dl.downloader.requests.get")
     def test_download_m3u8_master_without_video_returns_empty_list(self, get):
         get.return_value = self._playlist_response("#EXTM3U\n#EXT-X-STREAM-INF\n")

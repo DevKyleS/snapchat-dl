@@ -691,7 +691,7 @@ class TestSnapchat_dl(unittest.TestCase):
         )
 
         download_segments.assert_called_once_with(
-            "https://cdn.example/story.m3u8", segments_dir, 0
+            "https://cdn.example/story.m3u8", segments_dir, 0, False
         )
         combine.assert_called_once_with(
             ["segment.ts"], output_path.replace(".m3u8", ".mp4")

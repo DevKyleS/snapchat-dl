@@ -4,6 +4,7 @@ import concurrent.futures
 import json
 import os
 import re
+from urllib.parse import urlparse
 
 import requests
 from loguru import logger
@@ -43,15 +44,35 @@ class SnapchatDL:
         self.reaponse_ok = requests.codes.get("ok")
 
     def _is_publisher_url(self, url_or_username):
-        """Check if the input is a publisher URL."""
-        return url_or_username.startswith("https://story.snapchat.com/p/")
+        """Check if the input is a publisher story or highlight URL."""
+        parsed_url = urlparse(url_or_username)
+        path_parts = [part for part in parsed_url.path.split("/") if part]
+        is_publisher_story = (
+            parsed_url.netloc == "story.snapchat.com"
+            and len(path_parts) >= 3
+            and path_parts[0] == "p"
+        )
+        is_publisher_highlight = (
+            parsed_url.netloc in {"www.snapchat.com", "snapchat.com"}
+            and len(path_parts) >= 3
+            and path_parts[0].startswith("@")
+            and path_parts[1] == "highlight"
+        )
+        return is_publisher_story or is_publisher_highlight
 
     def _parse_publisher_url(self, publisher_url):
-        """Extract publisher_id and story_id from publisher URL."""
-        # Expected format: https://story.snapchat.com/p/{publisher_id}/{story_id}
-        parts = publisher_url.replace("https://story.snapchat.com/p/", "").split("/")
-        if len(parts) >= 2:
-            return parts[0], parts[1]
+        """Extract publisher and story identifiers from a supported URL."""
+        parsed_url = urlparse(publisher_url)
+        parts = [part for part in parsed_url.path.split("/") if part]
+        if parsed_url.netloc == "story.snapchat.com" and len(parts) >= 3 and parts[0] == "p":
+            return parts[1], parts[2]
+        if (
+            parsed_url.netloc in {"www.snapchat.com", "snapchat.com"}
+            and len(parts) >= 3
+            and parts[0].startswith("@")
+            and parts[1] == "highlight"
+        ):
+            return parts[0][1:], parts[2]
         raise ValueError("Invalid publisher URL format")
 
     def _api_response(self, username_or_url):
@@ -127,13 +148,37 @@ class SnapchatDL:
     def _extract_publisher_data(self, response_json, story_id):
         """Extract data for publisher profiles."""
         def util_publisher_info(content: dict):
-            if "publicProfileInfo" in content["props"]["pageProps"]:
-                return content["props"]["pageProps"]["publicProfileInfo"]
+            page_props = content["props"]["pageProps"]
+            if "publicProfileInfo" in page_props:
+                return page_props["publicProfileInfo"]
+            if "publicUserProfile" in page_props:
+                return page_props["publicUserProfile"]
             raise UserNotFoundError
 
         def util_publisher_story(content: dict, story_id: str):
             # First check preselectedStory
             page_props = content["props"]["pageProps"]
+            highlight = page_props.get("highlight", {})
+            if highlight.get("highlightId", {}).get("value") == story_id:
+                highlight_snaps = []
+                for index, snap in enumerate(highlight.get("snapList", [])):
+                    if not snap.get("snapUrls", {}).get("mediaUrl"):
+                        continue
+                    snap = dict(snap)
+                    snap_id = snap.get("snapId") or {}
+                    if not snap_id.get("value"):
+                        snap["snapId"] = {
+                            "value": "{}_{}".format(
+                                story_id, snap.get("snapIndex", index)
+                            )
+                        }
+                    highlight_snaps.append(snap)
+                if highlight_snaps:
+                    timestamp = highlight_snaps[0].get("timestampInSec", {}).get(
+                        "value", "0"
+                    )
+                    return highlight_snaps, timestamp
+
             if "preselectedStory" in page_props and "premiumStory" in page_props["preselectedStory"]:
                 premium_story = page_props["preselectedStory"]["premiumStory"]
                 if "playerStory" in premium_story:

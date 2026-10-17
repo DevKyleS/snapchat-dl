@@ -132,3 +132,49 @@ class TestSnapchat_dl(unittest.TestCase):
         )
 
         self.assertEqual(stories, [])
+
+    def test_publisher_highlight_url_and_data(self):
+        highlight_id = "34d3f5d1-3b9d-5cbb-b8ae-af9457be9544"
+        highlight_url = (
+            "https://www.snapchat.com/@mashedscc4/highlight/" + highlight_id
+        )
+        self.assertTrue(self.snapchat_dl._is_publisher_url(highlight_url))
+        self.assertEqual(
+            self.snapchat_dl._parse_publisher_url(highlight_url),
+            ("mashedscc4", highlight_id),
+        )
+
+        response_json = {
+            "props": {
+                "pageProps": {
+                    "publicUserProfile": {"title": "Mashed"},
+                    "highlight": {
+                        "highlightId": {"value": highlight_id},
+                        "snapList": [
+                            {
+                                "snapIndex": index,
+                                "snapId": {"value": ""},
+                                "snapMediaType": 1,
+                                "timestampInSec": {"value": "1791387926"},
+                                "snapUrls": {
+                                    "mediaUrl": "https://cdn.example/{}.mp4".format(index)
+                                },
+                            }
+                            for index in range(3)
+                        ],
+                    },
+                }
+            }
+        }
+
+        stories, publisher, _, _, timestamp = self.snapchat_dl._extract_publisher_data(
+            response_json, highlight_id
+        )
+
+        self.assertEqual(publisher["title"], "Mashed")
+        self.assertEqual(len(stories), 3)
+        self.assertEqual(
+            [story["snapId"]["value"] for story in stories],
+            ["{}_0".format(highlight_id), "{}_1".format(highlight_id), "{}_2".format(highlight_id)],
+        )
+        self.assertEqual(timestamp, "1791387926")

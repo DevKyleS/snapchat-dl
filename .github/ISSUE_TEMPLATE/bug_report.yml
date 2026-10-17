@@ -1,0 +1,74 @@
+name: Bug report
+description: Report a reproducible problem with the downloader.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: "Search [existing issues](https://github.com/DevKyleS/snapchat-dl/issues) first. Do not include credentials, private account information, or other sensitive data."
+  - type: input
+    id: version
+    attributes:
+      label: snapchat-dl-community version
+      description: "Run `python -m pip show snapchat-dl-community` to find it."
+      placeholder: "2.1.0"
+    validations:
+      required: true
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: "3.11.8"
+    validations:
+      required: true
+  - type: input
+    id: operating-system
+    attributes:
+      label: Operating system
+      placeholder: "Ubuntu 24.04, Windows 11, macOS 15"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Affected area
+      options:
+        - User stories
+        - Publisher stories
+        - Spotlight
+        - Highlights
+        - HLS or media processing
+        - Command-line interface
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Include the command you ran and the smallest set of steps that reproduces the issue. Redact usernames or URLs if needed.
+      placeholder: |
+        1. Run ...
+        2. Observe ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant output
+      description: Paste a traceback or relevant terminal output, if available. Remove private or sensitive information.
+      render: text
+    validations:
+      required: false

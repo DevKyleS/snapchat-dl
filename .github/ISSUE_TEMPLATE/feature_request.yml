@@ -1,0 +1,44 @@
+name: Feature request
+description: Suggest a focused improvement to the downloader.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: "Search [existing issues](https://github.com/DevKyleS/snapchat-dl/issues) first. Requests should relate to downloading publicly available Snapchat content."
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - User stories
+        - Publisher stories
+        - Spotlight
+        - Highlights
+        - HLS or media processing
+        - Command-line interface
+        - Documentation
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: What are you trying to do, and what limitation are you encountering?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the behavior you would like. Include an example command or workflow if useful.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any other approaches or workarounds you have tried.
+    validations:
+      required: false

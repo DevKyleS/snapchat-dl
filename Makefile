@@ -61,7 +61,7 @@ test-integration: ## run optional live Snapchat integration tests
 	PYTHONPATH=. python -m pytest integration_tests -s --cache-clear
 
 coverage: clean-test ## check code coverage quickly with the default Python
-	coverage run -m pytest -v tests
+	coverage run --source=snapchat_dl -m pytest -v tests
 	coverage report -m --skip-covered
 	coverage html
 	$(BROWSER) htmlcov/index.html

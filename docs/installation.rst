@@ -21,6 +21,13 @@ guide`_, then install the package:
     $ pipx install snapchat-dl-community
     $ snapchat-dl --help
 
+To install or upgrade directly from the latest ``main`` branch instead:
+
+.. code-block:: console
+
+    $ pipx install --force 'git+https://github.com/DevKyleS/snapchat-dl.git@main'
+    $ snapchat-dl --help
+
 Alternatively, use a virtual environment:
 
 .. code-block:: console

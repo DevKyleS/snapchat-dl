@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 """Tests for `snapchat_dl` package."""
+import os
+import time
 import unittest
 from argparse import Namespace
 
@@ -17,12 +19,25 @@ class Test_utils(unittest.TestCase):
         """Test for invalid username."""
         self.assertFalse(valid_username("2323 2323"))
 
-    def test_strf_time(self):
-        """Test strf_time."""
-        self.assertEqual(
-            strf_time(978307200, "%Y-%m-%dT%H-%M-%S"),
-            "2001-01-01T00-00-00",
-        )
+    def test_strf_time_uses_utc(self):
+        """Test timestamps are formatted in UTC regardless of local timezone."""
+        if not hasattr(time, "tzset"):
+            self.skipTest("Changing the process timezone is not supported")
+
+        original_timezone = os.environ.get("TZ")
+        try:
+            os.environ["TZ"] = "HST10"
+            time.tzset()
+            self.assertEqual(
+                strf_time(978307200, "%Y-%m-%dT%H-%M-%S"),
+                "2001-01-01T00-00-00",
+            )
+        finally:
+            if original_timezone is None:
+                os.environ.pop("TZ", None)
+            else:
+                os.environ["TZ"] = original_timezone
+            time.tzset()
 
     def test_search_usernames(self):
         """Test usernames search in string."""

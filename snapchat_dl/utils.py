@@ -3,7 +3,7 @@ import json
 import os
 import re
 from argparse import Namespace
-from datetime import datetime
+from datetime import datetime, timezone
 
 from loguru import logger
 
@@ -39,7 +39,8 @@ def strf_time(timestamp, format_str):
     Returns:
         str: timestamp formatted to custom format.
     """
-    return datetime.fromtimestamp(timestamp).strftime(format_str)
+    utc_time = datetime.fromtimestamp(timestamp, timezone.utc).replace(tzinfo=None)
+    return utc_time.strftime(format_str)
 
 
 def valid_username(username):

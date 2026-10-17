@@ -13,57 +13,55 @@ This community-maintained fork keeps the ``snapchat-dl`` command and the
 should replace, not be installed alongside, the original ``snapchat-dl``
 package.
 
-For a fresh install, run:
+Python 3.11 or newer is required. Install ``pipx`` using the `pipx installation
+guide`_, then install the package:
 
 .. code-block:: console
 
-    $ python -m pip install snapchat-dl-community
-
-To switch from the original package, uninstall it first so its files and
-console script do not conflict with the community distribution:
-
-.. code-block:: console
-
-    $ python -m pip uninstall snapchat-dl
-    $ python -m pip install --upgrade snapchat-dl-community
+    $ pipx install snapchat-dl-community
     $ snapchat-dl --help
 
-To install the current source directly from GitHub:
+Alternatively, use a virtual environment:
 
 .. code-block:: console
 
-    $ python -m pip install --upgrade git+https://github.com/DevKyleS/snapchat-dl.git
+    $ python3 -m venv .venv
+    $ source .venv/bin/activate
+    $ python -m pip install --upgrade pip
+    $ python -m pip install snapchat-dl-community
+    $ snapchat-dl --help
 
-If you don't have `pip`_ installed, this `Python installation guide`_ can guide
-you through the process.
+If your Python installation does not include ``venv``, consult your operating
+system's Python documentation. Do not use ``sudo pip`` or
+``--break-system-packages`` to install this package system-wide.
 
-.. _pip: https://pip.pypa.io
-.. _Python installation guide: http://docs.python-guide.org/en/latest/starting/installation/
+If switching from the original distribution, uninstall it from the same
+environment where it was installed before installing this one. For example,
+use ``pipx uninstall snapchat-dl`` if it was installed with ``pipx``, or
+activate its virtual environment and run ``python -m pip uninstall snapchat-dl``
+there.
+
+.. _pipx installation guide: https://pipx.pypa.io/stable/installation/
 
 
 From sources
 ------------
 
-The sources for Snapchat Downloader can be downloaded from the `Github repo`_.
-
-You can either clone the public repository:
+Clone the public `Github repo`_:
 
 .. code-block:: console
 
     $ git clone https://github.com/DevKyleS/snapchat-dl.git
 
-Or download the `tarball`_:
+Then install the source in a virtual environment:
 
 .. code-block:: console
 
-    $ curl -L -o snapchat-dl-community.tar.gz https://github.com/DevKyleS/snapchat-dl/archive/refs/heads/main.tar.gz
-
-Once you have a copy of the source, you can install it with:
-
-.. code-block:: console
-
-    $ python setup.py install
+    $ cd snapchat-dl
+    $ python3 -m venv .venv
+    $ source .venv/bin/activate
+    $ python -m pip install --upgrade pip
+    $ python -m pip install .
 
 
 .. _Github repo: https://github.com/DevKyleS/snapchat-dl
-.. _tarball: https://github.com/DevKyleS/snapchat-dl/archive/refs/heads/main.tar.gz

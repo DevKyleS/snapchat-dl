@@ -54,26 +54,33 @@ This community-maintained fork keeps the `snapchat-dl` command and `snapchat_dl`
 Python import. It uses a separate PyPI distribution name and should replace,
 not be installed alongside, the original `snapchat-dl` package.
 
-For a fresh install:
+Python 3.11 or newer is required. Install `pipx` using its
+[installation guide](https://pipx.pypa.io/stable/installation/), then install
+the package:
 
 ```bash
-python -m pip install snapchat-dl-community
-```
-
-To switch from the original PyPI package, uninstall it first so its files and
-console script do not conflict with the community distribution:
-
-```bash
-python -m pip uninstall snapchat-dl
-python -m pip install --upgrade snapchat-dl-community
+pipx install snapchat-dl-community
 snapchat-dl --help
 ```
 
-To install the current source directly from GitHub:
+Alternatively, install into a virtual environment:
 
 ```bash
-python -m pip install --upgrade git+https://github.com/DevKyleS/snapchat-dl.git
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install snapchat-dl-community
+snapchat-dl --help
 ```
+
+If your Python installation does not include `venv`, consult your operating
+system's Python documentation. Do not use `sudo pip` or
+`--break-system-packages` to install this package system-wide.
+
+If switching from the original distribution, uninstall it from the same
+environment where it was installed before installing this one. For example,
+use `pipx uninstall snapchat-dl` if it was installed with `pipx`, or activate
+its virtual environment and run `python -m pip uninstall snapchat-dl` there.
 
 ### Usage
 

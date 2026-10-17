@@ -84,6 +84,13 @@ its virtual environment and run `python -m pip uninstall snapchat-dl` there.
 
 ### Usage
 
+Quote publisher URLs that contain query parameters so the shell passes the full
+URL to `snapchat-dl` instead of treating `&` as a background operator:
+
+```bash
+snapchat-dl 'https://story.snapchat.com/p/<publisher-id>/<story-id>?timestamp=-1&share_id=<share-id>&locale=en-US'
+```
+
 ```text
 
 usage: snapchat-dl [-h] [-c | -u] [-i BATCH_FILENAME] [-P DIRECTORY_PREFIX]
@@ -92,8 +99,8 @@ usage: snapchat-dl [-h] [-c | -u] [-i BATCH_FILENAME] [-P DIRECTORY_PREFIX]
                    [username [username ...]]
 
 positional arguments:
-  username              At least one or more usernames to download stories
-                        for.
+  username              Usernames or publisher URLs. Quote URLs containing
+                        query parameters such as '&'.
 
 optional arguments:
   -h, --help            show this help message and exit

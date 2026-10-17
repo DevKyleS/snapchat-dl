@@ -67,7 +67,7 @@ coverage: clean-test ## check code coverage quickly with the default Python
 	$(BROWSER) htmlcov/index.html
 
 docs-usage:
-	python.exe snapchat_dl/cli.py --help > USAGE.rst
+	python snapchat_dl/cli.py --help > USAGE.rst
 
 docs: docs-usage## generate Sphinx HTML documentation, including API docs
 	rm -f docs/snapchat_dl.rst
@@ -75,7 +75,7 @@ docs: docs-usage## generate Sphinx HTML documentation, including API docs
 	sphinx-apidoc -o docs/ snapchat_dl
 	$(MAKE) -C docs clean
 	$(MAKE) -C docs html
-	$(BROWSER) docs/_build/html/index.html
+	@printf "HTML documentation built at docs/_build/html/index.html\n"
 
 servedocs: docs ## compile the docs watching for changes
 	watchmedo shell-command -p '*.rst' -c '$(MAKE) -C docs html' -R -D .

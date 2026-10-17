@@ -103,7 +103,8 @@ ENV/
 .mypy_cache/
 
 # IDE settings
-.vscode/
+.vscode/*
+!.vscode/settings.json
 cmd.txt
 
 .test-data/
@@ -113,5 +114,3 @@ cmd.txt
 *.jpeg
 *.m3u8
 *.ts
-*.mp4
-

@@ -24,6 +24,17 @@ from snapchat_dl.utils import strf_time
 from snapchat_dl.utils import UserNotFoundError
 
 
+def _safe_filename_component(value, max_length=80):
+    if isinstance(value, dict):
+        value = value.get("value")
+    if value is None:
+        return ""
+
+    value = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", str(value))
+    value = re.sub(r"\s+", " ", value).strip(" .")
+    return value[:max_length].rstrip(" .")
+
+
 class SnapchatDL:
     """Interact with Snapchat API to download story."""
 
@@ -179,6 +190,16 @@ class SnapchatDL:
         """Extract data for publisher profiles."""
         page_props = response_json["props"]["pageProps"]
 
+        def add_story_title(snaps, story_title):
+            if isinstance(story_title, dict):
+                story_title = story_title.get("value")
+            if not story_title:
+                return snaps
+            return [
+                {**snap, "storyTitle": snap.get("storyTitle") or story_title}
+                for snap in snaps
+            ]
+
         # Spotlight pages use a separate feed schema from publisher stories.
         spotlight_feed = page_props.get("spotlightFeed") or {}
         for item in spotlight_feed.get("spotlightStories", []):
@@ -196,6 +217,10 @@ class SnapchatDL:
             creator = video_metadata.get("creator") or {}
             creator_info = creator.get("personCreator") or {}
             publisher_info = {"title": creator_info.get("name") or "Unknown Publisher"}
+            snaps = add_story_title(
+                snaps,
+                spotlight_story.get("storyTitle") or video_metadata.get("title"),
+            )
 
             timestamp = "0"
             if snaps:
@@ -237,7 +262,13 @@ class SnapchatDL:
                     timestamp = (
                         highlight_snaps[0].get("timestampInSec", {}).get("value", "0")
                     )
-                    return highlight_snaps, timestamp
+                    return (
+                        add_story_title(
+                            highlight_snaps,
+                            highlight.get("storyTitle") or highlight.get("title"),
+                        ),
+                        timestamp,
+                    )
 
             if (
                 "preselectedStory" in page_props
@@ -273,7 +304,12 @@ class SnapchatDL:
                             if snap.get("snapUrls", {}).get("mediaUrl")
                         ]
                         if valid_snaps:
-                            return valid_snaps, story_timestamp
+                            return (
+                                add_story_title(
+                                    valid_snaps, player_story.get("storyTitle")
+                                ),
+                                story_timestamp,
+                            )
 
             # Then check premiumStoryList for specific story ID
             if "premiumStoryList" in page_props:
@@ -319,7 +355,12 @@ class SnapchatDL:
                                 if snap.get("snapUrls", {}).get("mediaUrl")
                             ]
                             if valid_snaps:
-                                return valid_snaps, story_timestamp
+                                return (
+                                    add_story_title(
+                                        valid_snaps, player_story.get("storyTitle")
+                                    ),
+                                    story_timestamp,
+                                )
 
             return list(), "0"
 
@@ -383,6 +424,10 @@ class SnapchatDL:
         try:
             for media in stories:
                 snap_id = media["snapId"]["value"]
+                safe_snap_id = _safe_filename_component(snap_id) or "snap"
+                safe_dir_identifier = (
+                    _safe_filename_component(dir_identifier) or "story"
+                )
                 media_url = media["snapUrls"]["mediaUrl"]
                 media_type = media["snapMediaType"]
 
@@ -396,7 +441,9 @@ class SnapchatDL:
 
                 date_str = strf_time(timestamp, "%Y-%m-%d")
 
-                dir_name = os.path.join(self.directory_prefix, dir_identifier, date_str)
+                dir_name = os.path.join(
+                    self.directory_prefix, safe_dir_identifier, date_str
+                )
 
                 # Determine file extension based on URL and media type
                 if ".m3u8" in media_url:
@@ -404,9 +451,14 @@ class SnapchatDL:
                 else:
                     file_extension = MEDIA_TYPE[media_type]
 
-                filename = strf_time(timestamp, "%Y-%m-%d_%H-%M-%S {} {}.{}").format(
-                    snap_id, dir_identifier, file_extension
+                filename_parts = [strf_time(timestamp, "%Y-%m-%d_%H-%M-%S")]
+                story_title = _safe_filename_component(
+                    media.get("storyTitle") or media.get("title")
                 )
+                if story_title:
+                    filename_parts.append(story_title)
+                filename_parts.extend((safe_snap_id, safe_dir_identifier))
+                filename = " ".join(filename_parts) + "." + file_extension
 
                 if self.dump_json:
                     filename_json = os.path.join(dir_name, filename + ".json")
@@ -419,7 +471,7 @@ class SnapchatDL:
                 # Handle M3U8 files differently - download segments and combine
                 if file_extension == "m3u8":
                     # Create a subdirectory for the segments
-                    segments_dir = os.path.join(dir_name, f"segments_{snap_id}")
+                    segments_dir = os.path.join(dir_name, f"segments_{safe_snap_id}")
 
                     # Download M3U8 segments
                     executor.submit(

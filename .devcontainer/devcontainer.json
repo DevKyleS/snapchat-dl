@@ -1,0 +1,17 @@
+{
+	"name": "Snapchat DL Community",
+	"build": {
+		"dockerfile": "Dockerfile"
+	},
+	"remoteUser": "vscode",
+	"postCreateCommand": "python -m pip install -e \".[test]\" -r requirements_dev.txt",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-python.python",
+				"ms-python.vscode-pylance",
+				"ms-python.black-formatter"
+			]
+		}
+	}
+}

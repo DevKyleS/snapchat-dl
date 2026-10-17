@@ -26,7 +26,7 @@ class Test_downloader(unittest.TestCase):
     def setUp(self):
         """Set up test fixtures."""
         self.test_url = (
-            "https://sample-videos.com/video321/mp4/240/big_buck_bunny_240p_1mb.mp4"
+            "https://test-videos.co.uk/vids/bigbuckbunny/mp4/h264/360/Big_Buck_Bunny_360_10s_1MB.mp4"
         )
         self.test_url404 = "https://google.com/error.html"
 

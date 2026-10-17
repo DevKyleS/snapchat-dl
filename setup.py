@@ -16,8 +16,6 @@ requirements = list()
 with open("requirements.txt", "r") as file:
     requirements = [r for r in file.readlines() if len(r) > 0]
 
-test_requirements = ["pytest"].extend(requirements)
-
 setup(
     name="snapchat-dl",
     version=version["__version__"],
@@ -34,8 +32,7 @@ setup(
     },
     include_package_data=True,
     install_requires=requirements,
-    test_suite="tests",
-    tests_require=test_requirements,
+    extras_require={"test": ["pytest", "pytest-cov"]},
     python_requires=">=3.5",
     keywords="snapchat-dl",
     license="MIT license",
